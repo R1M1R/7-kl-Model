@@ -482,6 +482,12 @@ function teacherErrorText(error) {
   if (code === 'auth/unauthorized-domain' || /unauthorized-domain/i.test(message)) {
     return 'Вход с этого адреса закрыт. В Firebase откройте Authentication → Settings → Authorized domains и добавьте r1m1r.github.io.';
   }
+  if (code === 'PERMISSION_DENIED' || /permission_denied/i.test(message)) {
+    return 'Ведущим может стать только почта автора курса. Чужой аккаунт закрепить класс не может.';
+  }
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+    return 'Почта или пароль не подошли. Если вход уже создавался, нужен тот пароль, либо письмо для смены пароля.';
+  }
   return message || 'Не удалось открыть журнал';
 }
 
