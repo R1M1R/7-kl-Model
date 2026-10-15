@@ -442,12 +442,20 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .matrix .bare-input { min-height: 44px; padding: 8px 4px; font-size: 0.78rem; }
 .matrix th { background: #0d1a30; }
 
-.plot { width: 100%; height: 190px; border-radius: 16px; display: block; background: #0d1526; }
-.road { width: 100%; height: auto; background: #0d1526; border-radius: 16px; }
-.road line { stroke: #8ea3c2; stroke-width: 2; }
-.road circle { fill: #14233d; stroke: #3de0ff; stroke-width: 2; }
+.plot { width: 100%; height: 220px; border-radius: 16px; display: block; background: #0d1526; border: 1px solid var(--line); }
+.road { width: 100%; height: auto; background: #0d1526; border-radius: 16px; border: 1px solid var(--line); }
+.road line { stroke: var(--accent, #8ea3c2); stroke-width: 3; }
+.road circle { stroke: #041018; stroke-width: 2; }
 .road text { fill: #e8f0fb; font-size: 11px; font-weight: 800; text-anchor: middle; }
-.road text.lab { fill: #ffc14d; font-size: 12px; }
+.road text.node { fill: #041018; font-size: 10px; }
+.road text.lab { fill: #ffc14d; font-size: 13px; }
+.task-brief { display: grid; gap: 4px; margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent, var(--cyan)) 16%, #0d1a30); }
+.task-brief span { color: var(--muted); }
+.model-pick { background: #0c1526; border: 1px solid var(--line); border-radius: 16px; padding: 12px; margin: 0 0 10px; }
+.mission-run .chip.is-on { border-color: var(--accent, var(--cyan)); box-shadow: inset 0 0 0 1px var(--accent, var(--cyan)); }
+.mission-run .flow-arrow, .mission-run .slot-n { color: var(--accent, var(--cyan)); }
+.mission-run .shape { border-color: var(--accent, var(--cyan)); }
+.flow-slot { background: rgba(13, 26, 48, 0.65); }
 
 .slider-row { margin: 8px 0 12px; }
 .slider-row input[type="range"] { width: 100%; height: 36px; accent-color: #3de0ff; }

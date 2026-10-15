@@ -1888,7 +1888,8 @@ function lessonHtml(lesson) {
   if (lesson.phase === 'notes') body = notesHtml(lesson);
   if (lesson.phase === 'blitz') body = blitzHtml(lesson);
   return `${stepsHtml(lesson.phase, mission.hue)}${scoreStrip(lesson)}${back}
-    <div class="quest-banner" style="--accent:${mission.hue}"><i class="${mission.icon}" aria-hidden="true"></i><div><p class="eyebrow">Миссия ${lesson.n} · 45 минут</p><h2 class="section-title">${esc(mission.name)}</h2></div></div>${body}`;
+    <div class="quest-banner" style="--accent:${mission.hue}"><i class="${mission.icon}" aria-hidden="true"></i><div><p class="eyebrow">Миссия ${lesson.n} · 45 минут</p><h2 class="section-title">${esc(mission.name)}</h2></div></div>
+    <div class="mission-run" style="--accent:${mission.hue}">${body}</div>`;
 }
 
 function goalHtml(lesson) {
@@ -1952,9 +1953,9 @@ function trainer1(lesson) {
     const action = trainer.task.submitted
       ? `<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Зелёным отмечены существенные признаки.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
-    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><p>Объект: <b>${esc(trainer.task.object)}</b></p><p>Цель: «${esc(trainer.task.goal)}»</p><p>Отметьте только существенные признаки. Лишний или пропущенный признак — ошибка.</p><div class="grid-2">${chips}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p>Нажимайте только те признаки, без которых цель не решить.</p><div class="grid-2">${chips}</div>${action}</article>`;
   }
-  const cards = trainer.items.map((item) => `<div class="card"><p>${esc(item.text)}</p><div class="btn-row">
+  const cards = trainer.items.map((item) => `<div class="model-pick"><p>${esc(item.text)}</p><div class="btn-row">
       <button class="btn ${trainer.answers[item.id] === 'mat' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="mat" ${trainer.classSubmitted ? 'disabled' : ''}>Материальная</button>
       <button class="btn ${trainer.answers[item.id] === 'inf' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="inf" ${trainer.classSubmitted ? 'disabled' : ''}>Информационная</button>
     </div>${trainer.classSubmitted ? `<p class="${trainer.answers[item.id] === item.type ? 'ok-text' : 'bad-text'}">Верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}</p>` : ''}</div>`).join('');
@@ -2073,7 +2074,8 @@ function roadSvg(graph) {
     const label = graph.draft[edge.id] ? esc(graph.draft[edge.id]) : '?';
     return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line><text class="lab" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}">${label}</text>`;
   }).join('');
-  const nodes = Object.keys(pos).map((id) => `<circle cx="${pos[id][0]}" cy="${pos[id][1]}" r="20"></circle><text x="${pos[id][0]}" y="${pos[id][1] + 4}">${short[id]}</text>`).join('');
+  const tone = { A: '#3de0ff', B: '#9b8cff', C: '#3ee0a0', D: '#ffc14d', E: '#ff8fab' };
+  const nodes = Object.keys(pos).map((id) => `<circle cx="${pos[id][0]}" cy="${pos[id][1]}" r="22" fill="${tone[id]}"></circle><text class="node" x="${pos[id][0]}" y="${pos[id][1] + 4}">${short[id]}</text>`).join('');
   return `<svg class="road" viewBox="0 0 340 250" role="img" aria-label="Граф дорог">${lines}${nodes}</svg>`;
 }
 
@@ -2090,7 +2092,7 @@ function trainer4(lesson) {
     return `<article class="card"><h3>Веса сданы</h3><p>Неверных рёбер: ${wrong}.</p><button class="btn btn-primary" type="button" data-act="path-start">Искать маршрут</button></article>`;
   }
   if (lesson.trainer.stage === 'path') {
-    return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3><p>От «Дома» до «Стадиона» через «${esc(graph.names[graph.via])}». Введите точную длину в километрах.</p>${table}<label class="field">Длина пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
+    return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3><p>От «Дома» до «Стадиона» через «${esc(graph.names[graph.via])}». Сложите километры по выбранным дорогам.</p>${roadSvg(graph)}${table}<label class="field">Длина всего пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   return `<article class="card"><h3>Маршрут проверен</h3><p>${esc(best.path.map((id) => graph.names[id]).join(' → '))}. Длина ${best.len} км.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
