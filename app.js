@@ -1436,6 +1436,7 @@ function ensureIdentity() {
     save();
   }
   if (typeof state.roomCode !== 'string') state.roomCode = '';
+  if (!state.groupId) state.groupId = '1';
 }
 
 function cloudStudentId() {
@@ -1472,11 +1473,13 @@ function progressPayload() {
   const doneLessons = lessons.filter((lesson) => lesson.done);
   return {
     roomId: normRoom(state.roomCode),
+    groupId: state.groupId || '1',
     studentId: cloudStudentId(),
     board: {
       lastName: state.student.lastName,
       firstName: state.student.firstName,
       className: state.student.className,
+      groupId: state.groupId || '1',
       grades: lessons.map((lesson) => lesson.grade),
       points: doneLessons.reduce((sum, lesson) => sum + (lesson.total || 0), 0),
       lessonsDone: doneLessons.length,
@@ -1505,6 +1508,11 @@ function rankSection() {
   return `<article class="card"><h3>Рейтинг класса</h3>
     <p class="fine">Здесь видны только имя, сколько уроков сдано и сумма баллов. Тексты ДЗ, фото и уходы с экрана видны учителю, не одноклассникам.</p>
     <label class="field">Код класса от учителя<input id="room-code" value="${esc(saved)}" placeholder="7а-лаборатория" autocomplete="off"></label>
+    <label class="field">Группа<select id="room-group">
+      <option value="1" ${state.groupId === '1' ? 'selected' : ''}>Группа 1</option>
+      <option value="2" ${state.groupId === '2' ? 'selected' : ''}>Группа 2</option>
+      <option value="3" ${state.groupId === '3' ? 'selected' : ''}>Группа 3</option>
+    </select></label>
     <button class="btn btn-primary" type="button" data-act="save-room">Сохранить код и отправить свои баллы</button>
     ${connected ? '<div id="rank-wrap"><p class="fine">Загружаю рейтинг…</p></div>' : '<p class="fine">Общий рейтинг появится, когда учитель подключит журнал класса. Свои оценки выше уже сохранены на этом телефоне.</p>'}
   </article>`;
@@ -1513,7 +1521,8 @@ function rankSection() {
 function rankTable(rows) {
   if (!rows.length) return '<p class="fine">В этом классе пока никто не отправил баллы.</p>';
   const mine = validRoom(state.roomCode) ? cloudStudentId() : '';
-  const body = rows.map((row, index) => {
+  const visible = (state.groupId ? rows.filter((row) => String(row.groupId || state.groupId) === String(state.groupId)) : rows);
+  const body = visible.map((row, index) => {
     const grades = (row.grades || []).map((grade) => grade || '–').join(' ');
     return `<tr class="${row.id === mine ? 'is-me' : ''}"><td>${index + 1}</td><td>${esc(row.lastName)} ${esc(row.firstName)}</td><td>${row.points || 0}</td><td>${row.lessonsDone || 0}/4</td><td>${esc(grades)}</td></tr>`;
   }).join('');
@@ -1523,8 +1532,8 @@ function rankTable(rows) {
 function teacherJournalSection() {
   if (!cloudOn()) {
     return `<article class="card"><h3>Журнал всего класса</h3>
-      <p>Сейчас каждый телефон хранит только своего ученика. Коды и отчёты выше уже проверяют оценку. Общий список, рейтинг и фото появятся после одного подключения Firebase: анонимный вход учеников, вход учителя по почте и правила из файлов firestore.rules и storage.rules.</p>
-      <p class="fine">Фото не обязательно. Имеет смысл просить снимок тетради ко 2-му ДЗ и снимок своей модели к 4-му. Текста достаточно, чтобы сдать работу.</p>
+      <p>Автор курса: Усеинов Эмир Рустемович. Он ведущий: видит все группы. Коллеге можно выдать только её группы, например 1 и 2, без вашей группы.</p>
+      <p>Сейчас телефон хранит только своего ученика. Коды выше уже проверяют оценку. Общий журнал включится, когда база klmodel-40995 будет подключена тем Google-аккаунтом, в котором она создана.</p>
     </article>`;
   }
   return `<article class="card"><h3>Журнал всего класса</h3>
@@ -1976,7 +1985,7 @@ function render(options) {
   if (view === 'grades') {
     nodes.grades.innerHTML = renderGrades();
     if (cloudOn() && validRoom(state.roomCode)) {
-      LabCloud.watchBoard(normRoom(state.roomCode), (rows) => {
+      LabCloud.watchBoard(normRoom(state.roomCode), state.groupId || '1', (rows) => {
         const wrap = $('rank-wrap');
         if (wrap) wrap.innerHTML = rankTable(rows);
       });
@@ -2477,8 +2486,10 @@ function handleAct(act, btn) {
   if (act === 'verify') { runVerify(); return; }
   if (act === 'save-room') {
     const room = normRoom($('room-code').value);
+    const group = ($('room-group') && $('room-group').value) || '1';
     if (!validRoom(room)) { toast('Код класса нужен длиннее, например 7а-лаборатория.'); return; }
     state.roomCode = room;
+    state.groupId = group;
     save();
     toast('Код класса сохранён');
     publishProgress();
@@ -2492,9 +2503,10 @@ function handleAct(act, btn) {
     const out = $('journal-out');
     if (!validRoom(room)) { out.innerHTML = '<p class="field-error">Введите код класса, который вы дали ученикам.</p>'; return; }
     out.innerHTML = '<p class="fine">Открываю журнал…</p>';
-    LabCloud.teacherLogin(email, password).then(() => LabCloud.teacherJournal(room)).then((rows) => {
+    LabCloud.teacherLogin(email, password).then(() => LabCloud.teacherJournal(room)).then((result) => {
       const node = $('journal-out');
-      if (node) node.innerHTML = `<p class="ok-text">Сдали работы: ${rows.length}</p>` + journalCards(rows);
+      const role = result.access.role === 'master' ? 'Ведущий, все группы' : `Группы: ${result.access.groups.join(', ')}`;
+      if (node) node.innerHTML = `<p class="ok-text">${esc(role)}. Работ: ${result.rows.length}. Ваш код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось открыть журнал')}</p>`;

@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('classes').child(data.child('classId').val()).child('masters').child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "classes": {
+      "$classId": {
+        "meta": {
+          ".read": true,
+          ".write": "auth != null && root.child('classes').child($classId).child('masters').child(auth.uid).exists()"
+        },
+        "masters": {
+          "$uid": {
+            ".read": "auth != null",
+            ".write": "auth.uid == $uid && auth.token.firebase.sign_in_provider == 'password' && (!root.child('classes').child($classId).child('masters').exists() || root.child('classes').child($classId).child('masters').child(auth.uid).exists())"
+          }
+        },
+        "teachers": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid == $uid || root.child('classes').child($classId).child('masters').child(auth.uid).exists())",
+            ".write": "auth != null && root.child('classes').child($classId).child('masters').child(auth.uid).exists()"
+          }
+        },
+        "groups": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('classes').child($classId).child('masters').child(auth.uid).exists()"
+        },
+        "boardByGroup": {
+          "$groupId": {
+            ".read": "auth != null && (root.child('users').child(auth.uid).child('groupId').val() == $groupId || root.child('classes').child($classId).child('masters').child(auth.uid).exists() || root.child('classes').child($classId).child('teachers').child(auth.uid).child('groups').child($groupId).val() == true)",
+            "$sid": {
+              ".write": "auth != null && auth.uid == newData.child('uid').val() && newData.child('groupId').val() == $groupId && (!data.exists() || data.child('uid').val() == auth.uid)"
+            }
+          }
+        },
+        "workByGroup": {
+          "$groupId": {
+            ".read": "auth != null && (root.child('classes').child($classId).child('masters').child(auth.uid).exists() || root.child('classes').child($classId).child('teachers').child(auth.uid).child('groups').child($groupId).val() == true)",
+            "$sid": {
+              ".write": "auth != null && auth.uid == newData.child('uid').val() && newData.child('groupId').val() == $groupId && (!data.exists() || data.child('uid').val() == auth.uid)"
+            }
+          }
+        }
+      }
+    }
+  }
+}
