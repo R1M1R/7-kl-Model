@@ -1537,12 +1537,19 @@ function teacherJournalSection() {
     </article>`;
   }
   return `<article class="card"><h3>Журнал всего класса</h3>
-    <p>Войдите почтой учителя. Ученики этот список не видят: в рейтинге у них только имена и баллы.</p>
+    <p>Автор и ведущий: Усеинов Эмир Рустемович. Он видит все группы. Коллега после входа копирует свой код доступа, а вы открываете ей только нужные группы.</p>
+    <p class="fine">Если вход пишет unauthorized-domain, в Firebase Authentication добавьте домен r1m1r.github.io.</p>
     <div class="stack">
       <label class="field">Почта<input id="teacher-email" autocomplete="username"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Код класса<input id="teacher-room" value="${esc(state.roomCode || '')}" placeholder="7а-лаборатория"></label>
-      <button class="btn btn-primary" type="button" data-act="teacher-journal">Открыть журнал</button>
+      <button class="btn btn-primary" type="button" data-act="teacher-register">Создать вход ведущего</button>
+      <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть журнал</button>
+      <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
+      <label class="fine"><input type="checkbox" class="grant-group" value="1"> Группа 1</label>
+      <label class="fine"><input type="checkbox" class="grant-group" value="2"> Группа 2</label>
+      <label class="fine"><input type="checkbox" class="grant-group" value="3"> Группа 3</label>
+      <button class="btn btn-ghost" type="button" data-act="grant-teacher">Открыть коллеге выбранные группы</button>
     </div>
     <div id="journal-out"></div>
   </article>`;
@@ -2494,6 +2501,42 @@ function handleAct(act, btn) {
     toast('Код класса сохранён');
     publishProgress();
     render();
+    return;
+  }
+  if (act === 'teacher-register') {
+    const email = $('teacher-email').value.trim();
+    const password = $('teacher-pass').value;
+    const room = normRoom($('teacher-room').value);
+    const out = $('journal-out');
+    if (!validRoom(room) || !email || password.length < 6) {
+      out.innerHTML = '<p class="field-error">Нужны почта, пароль от 6 символов и код класса.</p>';
+      return;
+    }
+    state.roomCode = room;
+    save();
+    LabCloud.teacherLogin(email, password, true).then(() => LabCloud.claimMaster(room, 'Усеинов Эмир Рустемович')).then(() => LabCloud.teacherJournal(room)).then((result) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="ok-text">Вы ведущий. Код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
+    }).catch((error) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось создать вход')}</p>`;
+    });
+    return;
+  }
+  if (act === 'grant-teacher') {
+    const room = normRoom($('teacher-room').value);
+    const uid = $('colleague-uid').value.trim();
+    const groups = Array.from(document.querySelectorAll('.grant-group:checked')).map((node) => node.value);
+    const out = $('journal-out');
+    if (!validRoom(room) || uid.length < 8 || !groups.length) {
+      out.innerHTML = '<p class="field-error">Нужны код класса, код доступа коллеги и хотя бы одна группа.</p>';
+      return;
+    }
+    LabCloud.grantTeacher(room, uid, groups).then(() => {
+      out.innerHTML = `<p class="ok-text">Коллеге открыты группы ${esc(groups.join(', '))}.</p>`;
+    }).catch((error) => {
+      out.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось выдать доступ')}</p>`;
+    });
     return;
   }
   if (act === 'teacher-journal') {

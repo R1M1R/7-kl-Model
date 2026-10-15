@@ -97,11 +97,20 @@
     }).catch(() => onRows([]));
   }
 
-  async function teacherLogin(email, password) {
+  async function teacherLogin(email, password, create) {
     await ensure();
     const auth = firebase.auth();
     if (auth.currentUser && auth.currentUser.isAnonymous) await auth.signOut();
-    await auth.signInWithEmailAndPassword(email, password);
+    if (create) {
+      try {
+        await auth.createUserWithEmailAndPassword(email, password);
+      } catch (error) {
+        if (error.code !== 'auth/email-already-in-use') throw error;
+        await auth.signInWithEmailAndPassword(email, password);
+      }
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
     return auth.currentUser;
   }
 
