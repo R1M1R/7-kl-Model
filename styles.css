@@ -465,6 +465,9 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .road text.lab { fill: #ffc14d; font-size: 13px; }
 .task-brief { display: grid; gap: 4px; margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent, var(--cyan)) 16%, #0d1a30); }
 .task-brief span { color: var(--muted); }
+.now-next { display: grid; gap: 6px; margin: 0 0 10px; }
+.now-next p { margin: 0; padding: 8px 10px; border-radius: 12px; background: #0d1a30; }
+.now-next b { display: inline-block; min-width: 4.6em; color: var(--accent, var(--cyan)); }
 .model-pick { background: #0c1526; border: 1px solid var(--line); border-radius: 16px; padding: 12px; margin: 0 0 10px; }
 .mission-run .chip.is-on { border-color: var(--accent, var(--cyan)); box-shadow: inset 0 0 0 1px var(--accent, var(--cyan)); }
 .mission-run .flow-arrow, .mission-run .slot-n { color: var(--accent, var(--cyan)); }
