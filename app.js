@@ -1451,26 +1451,24 @@ function wmLayer() {
 function scoreStrip(lesson) {
   const live = recompute(lesson);
   const bank = Math.max(0, 45 - 10 * ((lesson.trainer && lesson.trainer.errors) || 0));
-  let trainer = `Тренажёр ${live.trainerScore}/45`;
-  if (lesson.phase === 'goal' || lesson.phase === 'theory') trainer = 'Тренажёр не начат';
-  else if (lesson.phase === 'trainer' && !trainerReady(lesson)) trainer = `Банк тренажёра ${bank}/45`;
-  const blitz = (lesson.phase === 'blitz' || lesson.phase === 'done')
-    ? `Блиц ${live.blitzScore}/40`
-    : 'Блиц не начат';
-  return `<div class="score-pills">
-    <span class="pill">Теория ${live.theoryScore}/15</span>
-    <span class="pill">${esc(trainer)}</span>
-    <span class="pill">${blitz}</span>
-    <span class="pill">Штраф ${live.penalty ? '−' + live.penalty : '0'}</span>
-    <span class="pill">В миссии ${fmtDuration(lesson.timeMs)} · план 45 мин</span>
+  const practice = (lesson.phase === 'goal' || lesson.phase === 'theory')
+    ? '—'
+    : (lesson.phase === 'trainer' && !trainerReady(lesson) ? bank : live.trainerScore);
+  const blitz = (lesson.phase === 'blitz' || lesson.phase === 'done') ? live.blitzScore : '—';
+  return `<div class="hud">
+    <div><small>Теория</small><b>${live.theoryScore}</b><small>из 15</small></div>
+    <div><small>Практика</small><b>${practice}</b><small>из 45</small></div>
+    <div><small>Блиц</small><b>${blitz}</b><small>из 40</small></div>
+    <p class="fine">В миссии ${fmtDuration(lesson.timeMs)} из 45 мин${live.penalty ? ' · штраф −' + live.penalty : ''}</p>
   </div>`;
 }
 
-function stepsHtml(phase) {
+function stepsHtml(phase, hue) {
   const order = ['goal', 'theory', 'trainer', 'notes', 'blitz', 'done'];
-  const labels = ['Брифинг', 'Теория', 'Практика', 'Дневник', 'Блиц', 'Итог'];
+  const labels = ['Бриф', 'Теория', 'Дело', 'Дневник', 'Блиц', 'Итог'];
   const current = phase === 'done' ? 5 : Math.max(0, order.indexOf(phase));
-  return `<div class="steps">${labels.map((label, index) => `<span class="step ${index < current ? 'is-done' : ''} ${index === current ? 'is-now' : ''}">${index + 1}. ${esc(label)}</span>`).join('')}</div>`;
+  const color = hue ? ` style="--accent:${hue}"` : '';
+  return `<div class="steps"${color}>${labels.map((label, index) => `<span class="step ${index < current ? 'is-done' : ''} ${index === current ? 'is-now' : ''}"><b>${index + 1}</b><small>${esc(label)}</small></span>`).join('')}</div>`;
 }
 
 function xpTotal() {
@@ -1880,16 +1878,16 @@ function renderTeacher() {
 
 function lessonHtml(lesson) {
   const meta = META[lesson.n];
+  const mission = MISSIONS[lesson.n];
   const back = '<button class="btn btn-ghost" type="button" data-act="nav" data-go="lessons"><i class="fa-solid fa-chevron-left"></i> К урокам</button>';
-  if (lesson.phase === 'done') return `${stepsHtml('done')}${back}${resultHtml(lesson)}`;
+  if (lesson.phase === 'done') return `${stepsHtml('done', mission.hue)}${back}${resultHtml(lesson)}`;
   let body = '';
   if (lesson.phase === 'goal') body = goalHtml(lesson);
   if (lesson.phase === 'theory') body = theoryHtml(lesson);
   if (lesson.phase === 'trainer') body = trainerHtml(lesson);
   if (lesson.phase === 'notes') body = notesHtml(lesson);
   if (lesson.phase === 'blitz') body = blitzHtml(lesson);
-  const mission = MISSIONS[lesson.n];
-  return `${stepsHtml(lesson.phase)}${scoreStrip(lesson)}${back}
+  return `${stepsHtml(lesson.phase, mission.hue)}${scoreStrip(lesson)}${back}
     <div class="quest-banner" style="--accent:${mission.hue}"><i class="${mission.icon}" aria-hidden="true"></i><div><p class="eyebrow">Миссия ${lesson.n} · 45 минут</p><h2 class="section-title">${esc(mission.name)}</h2></div></div>${body}`;
 }
 
@@ -1906,19 +1904,21 @@ function notesHtml(lesson) {
   if (!lesson.notes) lesson.notes = ['', '', ''];
   const prompts = MISSIONS[lesson.n].notes;
   const fields = prompts.map((prompt, index) => `<label class="field">${esc(prompt)}<textarea id="note-${index}" maxlength="400">${esc(lesson.notes[index] || '')}</textarea></label>`).join('');
-  return `<article class="card"><h3>Дневник миссии</h3><p>Это не контрольная: баллы за дневник не ставятся. Без трёх живых ответов блиц не откроется. Пустые строки и «12345» не подойдут.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
+  const mission = MISSIONS[lesson.n];
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><h3>Дневник миссии</h3><p>Это не контрольная: баллы за дневник не ставятся. Напишите три ответа своими словами, и откроется блиц.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
 }
 
 function theoryHtml(lesson) {
   const card = lesson.theory.cards[lesson.theory.index];
   const left = Math.max(0, READ_MS - (Date.now() - (lesson.theory.cardStartedAt || Date.now())));
   const locked = left > 0;
+  const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е'];
   const options = card.options.map((option, index) => {
     const classes = ['btn', 'choice'];
     if (card.wrong.indexOf(index) >= 0) classes.push('is-wrong');
     if (card.solved && index === card.correctIndex) classes.push('is-ok');
     const blocked = card.solved || locked || card.wrong.indexOf(index) >= 0;
-    return `<button class="${classes.join(' ')}" type="button" data-act="theory-pick" data-i="${index}" ${blocked ? 'disabled' : ''}>${esc(option)}</button>`;
+    return `<button class="${classes.join(' ')}" type="button" data-act="theory-pick" data-i="${index}" ${blocked ? 'disabled' : ''}><span class="choice-letter">${letters[index] || index + 1}</span><span>${esc(option)}</span></button>`;
   }).join('');
   const next = card.solved
     ? (lesson.theory.index < 4
@@ -1929,11 +1929,11 @@ function theoryHtml(lesson) {
     ? `<p class="${card.points ? 'ok-text' : 'warn-text'}">${card.points ? 'Верно с первой попытки: 3 балла.' : 'Уже не первая попытка: балл за карточку 0, но ход мысли сохранён.'}</p><p>${esc(card.explain)}</p>`
     : `<p class="js-readgate fine">${locked ? `Прочитайте теорию: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
   const mission = MISSIONS[lesson.n];
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><p class="pill"><i class="${mission.icon}" aria-hidden="true"></i> Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3>${card.body}${note}${options}${next}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><p class="pill"><i class="${mission.icon}" aria-hidden="true"></i> Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3><div class="theory-copy">${card.body}</div>${note}${options}${next}</article>`;
 }
 
 function trainerHtml(lesson) {
-  const bank = `<p class="formula">Банк тренажёра: ${Math.max(0, 45 - 10 * lesson.trainer.errors)} / 45. Каждая ошибка −10, сдача однократная.</p>`;
+  const bank = `<p class="formula">Банк практики: ${Math.max(0, 45 - 10 * lesson.trainer.errors)} из 45. Ошибка снимает 10, сдать можно один раз.</p>`;
   if (lesson.n === 1) return bank + trainer1(lesson);
   if (lesson.n === 2) return bank + trainer2(lesson);
   if (lesson.n === 3) return bank + trainer3(lesson);
@@ -2108,10 +2108,12 @@ function blitzHtml(lesson) {
   const left = Math.max(0, (blitz.deadline || Date.now()) - Date.now());
   const extra = question.usesGraph ? graphTable(lesson.trainer.graph) : '';
   const graph = question.graph ? `<canvas class="plot" data-plot="${esc(JSON.stringify(question.graph))}"></canvas>` : '';
+  const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е'];
+  const mission = MISSIONS[lesson.n];
   const answers = question.type === 'choice'
-    ? question.options.map((option, index) => `<button class="btn choice" type="button" data-act="blitz-pick" data-i="${index}">${esc(option)}</button>`).join('')
+    ? question.options.map((option, index) => `<button class="btn choice" type="button" data-act="blitz-pick" data-i="${index}"><span class="choice-letter">${letters[index] || index + 1}</span><span>${esc(option)}</span></button>`).join('')
     : `<label class="field">Целое число<input id="blitz-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="blitz-num">Сдать число</button>`;
-  return `<article class="card no-cheat"><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p>${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
 }
 
 function resultHtml(lesson) {

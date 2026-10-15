@@ -229,13 +229,33 @@ img, svg { max-width: 100%; }
 .grade-3 { color: #2a1c00; background: var(--amber); border-color: transparent; }
 .grade-2 { color: #fff; background: var(--bad); border-color: transparent; }
 
-.steps { display: flex; gap: 6px; overflow: auto; padding-bottom: 4px; margin-bottom: 10px; }
+.steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin-bottom: 10px; }
 .step {
-  flex: 0 0 auto; padding: 6px 8px; border-radius: 999px;
-  border: 1px solid var(--line); color: var(--muted); font-size: 0.75rem; font-weight: 800;
+  display: grid; justify-items: center; gap: 1px;
+  min-height: 48px; padding: 6px 2px; border-radius: 12px;
+  border: 1px solid var(--line); color: var(--muted); font-size: 0.68rem; font-weight: 800; text-align: center;
 }
-.step.is-now { color: #041018; background: var(--cyan); border-color: transparent; }
-.step.is-done { color: var(--good); }
+.step b { font-size: 0.9rem; line-height: 1; }
+.step small { line-height: 1.1; }
+.step.is-now { color: #041018; background: var(--accent, var(--cyan)); border-color: transparent; }
+.step.is-done { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
+.hud > div {
+  background: #0d1a30; border: 1px solid var(--line); border-radius: 16px; padding: 8px 4px; text-align: center;
+}
+.hud b { display: block; font-family: Unbounded, Manrope, sans-serif; font-size: 1.45rem; line-height: 1.1; color: var(--accent, var(--cyan)); }
+.hud small { color: var(--muted); font-weight: 800; font-size: 0.75rem; }
+.hud .fine { grid-column: 1 / -1; margin: 0; }
+.choice { display: flex; align-items: center; gap: 10px; text-align: left; }
+.choice-letter {
+  flex: none; width: 34px; height: 34px; border-radius: 11px;
+  display: grid; place-items: center; font-weight: 800;
+  background: color-mix(in srgb, var(--accent, var(--cyan)) 22%, #0d1a30);
+  color: var(--accent, var(--cyan));
+}
+.theory-copy p { margin: 0 0 8px; }
+.blitz-q { font-size: 1.08rem; font-weight: 800; }
+.result-hero strong { color: var(--accent, var(--text)); }
 
 .score-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .choice, .chip, .block-item {
