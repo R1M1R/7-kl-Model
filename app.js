@@ -1508,21 +1508,27 @@ function rulesHtml() {
 }
 
 function renderLessons() {
+  const nextMission = [1, 2, 3, 4].find((n) => !(state.lessons[n] && state.lessons[n].phase === 'done'));
   const cards = [1, 2, 3, 4].map((n) => {
     const lesson = state.lessons[n];
     const meta = META[n];
-    let status = 'Не начат';
+    const started = lesson && lesson.startedAt;
+    let status = 'Не начата';
     let badge = '';
+    let action = 'В миссию';
     if (lesson && lesson.phase === 'done') {
       status = `${lesson.total}/100 · ${fmtDuration(lesson.timeMs)}`;
       badge = `<span class="badge grade-${lesson.grade}">${lesson.grade}</span>`;
-    } else if (lesson) {
-      status = 'В работе';
-      badge = '<span class="pill">…</span>';
+      action = 'Открыть';
+    } else if (started) {
+      status = 'Идёт сейчас';
+      badge = '<span class="pill">игра</span>';
+      action = 'Продолжить';
     }
     const mission = MISSIONS[n];
     const starLine = lesson && lesson.phase === 'done' ? stars(lesson.grade) : '☆☆☆';
-    return `<article class="card lesson-card mission quest-card" style="--accent:${mission.hue}">
+    const mark = lesson && lesson.phase === 'done' ? 'is-cleared' : (n === nextMission ? 'is-next' : '');
+    return `<article class="card lesson-card mission quest-card ${mark}" style="--accent:${mission.hue}">
       <div class="mission-mark" aria-hidden="true"><i class="${mission.icon}"></i><span>${n}</span></div>
       <div>
         <p class="eyebrow">Миссия ${n} · 45 мин</p>
@@ -1530,12 +1536,21 @@ function renderLessons() {
         <p class="fine">${esc(meta.teaser)}</p>
         <p class="stars-sm">${esc(starLine)} · ${esc(status)}</p>
       </div>
-      <div class="status-col">${badge}<button class="btn btn-primary" type="button" data-act="open-lesson" data-n="${n}">${lesson && lesson.phase === 'done' ? 'Открыть' : 'В миссию'}</button></div>
+      <div class="status-col">${badge}<button class="btn btn-primary" type="button" data-act="open-lesson" data-n="${n}">${action}</button></div>
     </article>`;
   }).join('');
   const points = xpTotal();
+  const nextName = nextMission ? MISSIONS[nextMission].name : 'Все миссии пройдены';
+  const width = Math.max(4, Math.round(points / 400 * 100));
   return `<p class="eyebrow">Игровое поле</p><h2 class="section-title">Привет, ${esc(state.student.firstName)}!</h2>
-    <article class="card hero-rank"><p class="eyebrow">${esc(rankTitle(points))}</p><p class="lead">${points} из 400 баллов · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p><p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p></article>${cards}`;
+    <article class="card hero-rank">
+      <p class="eyebrow">${esc(rankTitle(points))}</p>
+      <p class="lead">${points} из 400 · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p>
+      <div class="xp-track" aria-hidden="true"><span style="width:${width}%"></span></div>
+      <p class="fine">Дальше: ${esc(nextName)}</p>
+      <p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p>
+    </article>
+    <div class="quest-map">${cards}</div>`;
 }
 
 function honestyBlock(lesson) {

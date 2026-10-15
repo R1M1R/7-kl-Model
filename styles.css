@@ -287,7 +287,18 @@ img, svg { max-width: 100%; }
   background: color-mix(in srgb, var(--accent, var(--cyan)) 18%, #0d1a30);
 }
 .stars-sm { margin: 6px 0 0; letter-spacing: 0.08em; color: var(--amber); font-weight: 800; font-size: 0.92rem; }
-.teacher-door { width: 100%; margin-top: 14px; border-color: var(--cyan); color: var(--cyan); }
+.teacher-door { width: 100%; margin-top: 14px; }
+.door-label { margin: 18px 0 0; }
+.xp-track { height: 14px; border-radius: 999px; background: #0d1a30; overflow: hidden; margin: 10px 0 4px; border: 1px solid var(--line); }
+.xp-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--violet) 55%, var(--amber)); }
+.quest-map { display: grid; gap: 12px; }
+.quest-card.is-cleared { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 55%, transparent); }
+.quest-card.is-next { box-shadow: 0 0 0 2px var(--accent, var(--cyan)), 0 16px 36px rgba(0, 0, 0, 0.28); }
+.station:nth-child(1) { border-color: #3de0ff; }
+.station:nth-child(2) { border-color: #9b8cff; }
+.station:nth-child(3) { border-color: #ffc14d; }
+.station:nth-child(4) { border-color: #3ee0a0; }
+.station:nth-child(5) { border-color: #ff5d73; }
 .choice { border-radius: 16px; font-weight: 800; min-height: 56px; }
 .hero-rank {
   background:
