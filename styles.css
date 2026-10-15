@@ -291,7 +291,26 @@ img, svg { max-width: 100%; }
 .door-label { margin: 18px 0 0; }
 .xp-track { height: 14px; border-radius: 999px; background: #0d1a30; overflow: hidden; margin: 10px 0 4px; border: 1px solid var(--line); }
 .xp-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--violet) 55%, var(--amber)); }
-.quest-map { display: grid; gap: 12px; }
+.quest-map { display: grid; gap: 14px; position: relative; }
+.quest-map::before {
+  content: "";
+  position: absolute;
+  left: 47px;
+  top: 28px;
+  bottom: 28px;
+  width: 4px;
+  border-radius: 99px;
+  background: linear-gradient(#3de0ff, #9b8cff, #ffc14d, #3ee0a0);
+  opacity: 0.85;
+}
+.quest-map .quest-card { position: relative; z-index: 1; }
+.mission-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 4px; }
+.mission-strip span {
+  height: 48px; border-radius: 16px;
+  display: grid; place-items: center; font-size: 1.15rem;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, #0d1a30);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
 .quest-card.is-cleared { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--good) 55%, transparent); }
 .quest-card.is-next { box-shadow: 0 0 0 2px var(--accent, var(--cyan)), 0 16px 36px rgba(0, 0, 0, 0.28); }
 .station:nth-child(1) { border-color: #3de0ff; }

@@ -27,10 +27,15 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Stage public site
+        run: |
+          mkdir -p site
+          cp index.html styles.css app.js cloud.js firebase-config.js .nojekyll site/
+
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
 
       - name: Deploy
         id: deployment

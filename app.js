@@ -1693,7 +1693,7 @@ function teacherJournalSection() {
   return `<article class="card"><h3>Журнал всего класса</h3>
     <p>Автор и ведущий: Усеинов Эмир Рустемович. Один раз закрепите вход за классом. Дальше на этом телефоне достаточно кнопки «Открыть журнал».</p>
     <div class="stack">
-      <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved() || 'useinov.e98@gmail.com')}"></label>
+      <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}" placeholder="Только для учителя"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
       <button class="btn btn-ghost" type="button" data-act="teacher-reset">Прислать письмо для пароля</button>

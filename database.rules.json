@@ -1,5 +1,11 @@
 {
   "rules": {
+    "secrets": {
+      "masterEmail": {
+        ".read": false,
+        ".write": false
+      }
+    },
     "users": {
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || root.child('classes').child(data.child('classId').val()).child('masters').child(auth.uid).exists())",
@@ -15,7 +21,7 @@
         "masters": {
           "$uid": {
             ".read": "auth != null",
-            ".write": "auth.uid == $uid && auth.token.email == 'useinov.e98@gmail.com' && auth.token.firebase.sign_in_provider == 'password' && (!root.child('classes').child($classId).child('masters').exists() || root.child('classes').child($classId).child('masters').child(auth.uid).exists())"
+            ".write": "auth.uid == $uid && auth.token.firebase.sign_in_provider == 'password' && auth.token.email == root.child('secrets').child('masterEmail').val() && (!root.child('classes').child($classId).child('masters').exists() || root.child('classes').child($classId).child('masters').child(auth.uid).exists())"
           }
         },
         "teachers": {
