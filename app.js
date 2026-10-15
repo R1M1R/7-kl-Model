@@ -1730,9 +1730,8 @@ function journalCards(rows) {
   }).join('');
 }
 
-function photoField(n, label) {
-  if (!cloudOn() || state.hw[n].done) return '';
-  return `<label class="field">${label}<input type="file" accept="image/*" capture="environment" data-photo="${n}"></label><p class="fine">Фото необязательно. Без него ДЗ тоже принимается.</p>`;
+function photoField() {
+  return '';
 }
 
 function renderGrades() {
@@ -1896,7 +1895,7 @@ function goalHtml(lesson) {
   const meta = META[lesson.n];
   const mission = MISSIONS[lesson.n];
   const plan = mission.stations.map(([name, time]) => `<span class="station"><b>${esc(name)}</b><small>${esc(time)}</small></span>`).join('');
-  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><div class="quest-banner"><i class="${mission.icon}" aria-hidden="true"></i><p>${esc(mission.story)}</p></div><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul><h3>План на 45 минут</h3><div class="stations">${plan}</div>${rulesHtml()}
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><p class="story-lead">${esc(mission.story)}</p><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul><h3>План на 45 минут</h3><div class="stations">${plan}</div>${rulesHtml()}
     <button class="btn btn-primary" type="button" data-act="start-lesson">Начать миссию</button>
     <p class="fine">После старта попытка закрепляется на этом устройстве. Результат уйдёт учителю сам.</p></article>`;
 }
@@ -1930,7 +1929,8 @@ function theoryHtml(lesson) {
     ? `<p class="${card.points ? 'ok-text' : 'warn-text'}">${card.points ? 'Верно с первой попытки: 3 балла.' : 'Уже не первая попытка: балл за карточку 0, но ход мысли сохранён.'}</p><p>${esc(card.explain)}</p>`
     : `<p class="js-readgate fine">${locked ? `Прочитайте теорию: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
   const mission = MISSIONS[lesson.n];
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><p class="pill"><i class="${mission.icon}" aria-hidden="true"></i> Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3><div class="theory-copy">${card.body}</div>${note}${options}${next}</article>`;
+  const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="theory-copy">${card.body}</div>${note}${options}${next}</article>`;
 }
 
 function trainerHtml(lesson) {

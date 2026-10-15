@@ -254,6 +254,12 @@ img, svg { max-width: 100%; }
   color: var(--accent, var(--cyan));
 }
 .theory-copy p { margin: 0 0 8px; }
+.story-lead { font-size: 1.08rem; font-weight: 800; margin-top: 0; }
+.dots { display: flex; gap: 8px; margin: 0 0 10px; }
+.dots i { width: 14px; height: 14px; border-radius: 99px; background: #243049; }
+.dots i.is-done { background: var(--good); }
+.dots i.is-now { background: var(--accent, var(--cyan)); transform: scale(1.2); }
+.mission-run > .card { border-top: 4px solid var(--accent, var(--cyan)); }
 .blitz-q { font-size: 1.08rem; font-weight: 800; }
 .result-hero strong { color: var(--accent, var(--text)); }
 
