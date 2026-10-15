@@ -1544,6 +1544,7 @@ function teacherJournalSection() {
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Код класса<input id="teacher-room" value="${esc(state.roomCode || '')}" placeholder="7а-лаборатория"></label>
       <button class="btn btn-primary" type="button" data-act="teacher-register">Создать вход ведущего</button>
+      <button class="btn btn-ghost" type="button" data-act="colleague-register">Создать вход коллеги</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть журнал</button>
       <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
       <label class="fine"><input type="checkbox" class="grant-group" value="1"> Группа 1</label>
@@ -2503,6 +2504,24 @@ function handleAct(act, btn) {
     render();
     return;
   }
+  if (act === 'colleague-register') {
+    const email = $('teacher-email').value.trim();
+    const password = $('teacher-pass').value;
+    const room = normRoom($('teacher-room').value);
+    const out = $('journal-out');
+    if (!validRoom(room) || !email || password.length < 6) {
+      out.innerHTML = '<p class="field-error">Нужны почта, пароль от 6 символов и тот же код класса.</p>';
+      return;
+    }
+    LabCloud.teacherLogin(email, password, true).then(() => LabCloud.myAccess(room)).then((access) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="ok-text">Вход коллеги создан. Передайте ведущему код доступа: ${esc(access.uid)}</p>`;
+    }).catch((error) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось создать вход коллеги')}</p>`;
+    });
+    return;
+  }
   if (act === 'teacher-register') {
     const email = $('teacher-email').value.trim();
     const password = $('teacher-pass').value;
@@ -2548,8 +2567,13 @@ function handleAct(act, btn) {
     out.innerHTML = '<p class="fine">Открываю журнал…</p>';
     LabCloud.teacherLogin(email, password).then(() => LabCloud.teacherJournal(room)).then((result) => {
       const node = $('journal-out');
+      if (!node) return;
+      if (result.access.role === 'none') {
+        node.innerHTML = `<p class="field-error">Доступ к группам ещё не выдан. Код доступа для ведущего: ${esc(result.access.uid)}</p>`;
+        return;
+      }
       const role = result.access.role === 'master' ? 'Ведущий, все группы' : `Группы: ${result.access.groups.join(', ')}`;
-      if (node) node.innerHTML = `<p class="ok-text">${esc(role)}. Работ: ${result.rows.length}. Ваш код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
+      node.innerHTML = `<p class="ok-text">${esc(role)}. Работ: ${result.rows.length}. Ваш код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось открыть журнал')}</p>`;

@@ -162,7 +162,7 @@
 
   async function teacherJournal(roomId) {
     const access = await myAccess(roomId);
-    if (access.role === 'none') throw new Error('Нет доступа к этому классу. Ведущий должен выдать вам группы.');
+    if (access.role === 'none') return { access, rows: [] };
     const rows = [];
     for (const groupId of access.groups) {
       const snap = await root().child(`classes/${roomId}/workByGroup/${groupId}`).get();
