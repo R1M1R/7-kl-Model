@@ -1674,9 +1674,10 @@ function teacherJournalSection() {
   return `<article class="card"><h3>Журнал всего класса</h3>
     <p>Автор и ведущий: Усеинов Эмир Рустемович. Один раз закрепите вход за классом. Дальше на этом телефоне достаточно кнопки «Открыть журнал».</p>
     <div class="stack">
-      <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}"></label>
+      <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved() || 'useinov.e98@gmail.com')}"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
+      <button class="btn btn-ghost" type="button" data-act="teacher-reset">Прислать письмо для пароля</button>
       <button class="btn btn-primary" type="button" data-act="teacher-journal">Открыть журнал</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-register">Закрепить меня ведущим этого класса</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-logout">Выйти из входа учителя</button>
@@ -2713,6 +2714,23 @@ function handleAct(act, btn) {
       out.innerHTML = `<p class="ok-text">Коллеге открыты группы ${esc(groups.join(', '))}.</p>`;
     }).catch((error) => {
       out.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
+    });
+    return;
+  }
+  if (act === 'teacher-reset') {
+    const email = $('teacher-email').value.trim();
+    const out = $('journal-out');
+    if (!email || email.indexOf('@') < 1) {
+      out.innerHTML = '<p class="field-error">Напишите почту, на которую прислать письмо.</p>';
+      return;
+    }
+    out.innerHTML = '<p class="fine">Отправляю письмо…</p>';
+    LabCloud.sendPasswordReset(email).then(() => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = '<p class="ok-text">Письмо отправлено. Задайте в нём пароль, затем вернитесь и нажмите «Закрепить меня ведущим этого класса».</p>';
+    }).catch((error) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
     });
     return;
   }

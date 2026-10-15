@@ -51,6 +51,12 @@
     return auth.currentUser;
   }
 
+  async function sendPasswordReset(email) {
+    const ok = await ensure();
+    if (!ok) throw new Error('Журнал класса ещё не подключён');
+    await firebase.auth().sendPasswordResetEmail(String(email || '').trim());
+  }
+
   async function teacherLogout() {
     const ok = await ensure();
     if (!ok || !firebase.auth) return;
@@ -246,6 +252,7 @@
     publish,
     currentTeacher,
     teacherLogout,
+    sendPasswordReset,
     watchBoard,
     teacherLogin,
     claimMaster,
