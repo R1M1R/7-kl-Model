@@ -45,7 +45,7 @@
         </svg>
         <p class="eyebrow">ФГОС ООО · информатика · 7 класс</p>
         <h1 id="auth-title">Цифролаб 7</h1>
-        <p class="lead">Моделирование и формализация. Четыре урока, тренажёры и честная оценка за классную работу.</p>
+        <p class="lead">Четыре миссии по 45 минут. Баллы и домашние работы уходят учителю сами: коды класса вводить не нужно.</p>
         <p class="fine">Автор: Усеинов Эмир Рустемович</p>
       </div>
       <form id="auth-form" class="stack" autocomplete="off">
@@ -58,9 +58,15 @@
         <label class="field">Класс
           <input id="className" name="className" required maxlength="6" placeholder="7А" autocapitalize="characters">
         </label>
+        <p class="eyebrow">Группа, которую назвал учитель</p>
+        <div class="group-picks">
+          <label>1<input type="radio" name="signupGroup" value="1" checked></label>
+          <label>2<input type="radio" name="signupGroup" value="2"></label>
+          <label>3<input type="radio" name="signupGroup" value="3"></label>
+        </div>
         <p id="auth-error" class="field-error" role="alert"></p>
-        <button class="btn btn-primary" type="submit">Войти в лабораторию</button>
-        <p class="fine">Фамилия, имя и класс закрепляются за этим браузером и попадают на карточки оценок. Обновление страницы не стирает прогресс и не даёт новую попытку.</p>
+        <button class="btn btn-primary" type="submit">Начать миссии</button>
+        <p class="fine">Фамилия, имя, класс и группа закрепляются за этим браузером. Обновление страницы не стирает прогресс и не даёт новую попытку.</p>
       </form>
     </div>
   </section>

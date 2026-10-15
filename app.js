@@ -6,7 +6,8 @@
 const STORAGE_KEY = 'digitallab7-model-journal-v1';
 const SECRET = ['M7', 'FGOS', 'LAB', '2026', 'MODEL', 'SALT', 'K9'].join('-');
 const BLITZ_MS = 45000;
-const READ_MS = 3000;
+const READ_MS = 12000;
+const AUTHOR = 'Усеинов Эмир Рустемович';
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const META = [
@@ -58,6 +59,54 @@ const META = [
       'Кратчайший путь как наименьшая сумма весов'
     ],
     hw: 'Собрать свою информационную модель'
+  }
+];
+
+const MISSIONS = [
+  null,
+  {
+    name: 'Охота за признаками',
+    hue: '#3de0ff',
+    story: 'Лаборатория получила заказ: отличить настоящий объект от модели и оставить только признаки, которые нужны для цели. Остальное — маскировка.',
+    stations: [['Брифинг', '5 мин'], ['Теория', '12 мин'], ['Практика', '15 мин'], ['Дневник', '8 мин'], ['Блиц', '5 мин']],
+    notes: [
+      'Какой объект вы сегодня отличали от модели и зачем для него делают модель?',
+      'Назовите два признака, которые были существенными, и объясните почему.',
+      'Где в вашей жизни вы уже пользуетесь моделью, сами того не замечая?'
+    ]
+  },
+  {
+    name: 'Лаборатория формул',
+    hue: '#9b8cff',
+    story: 'Дрон и бак с водой подчиняются формулам. Ваша миссия — собрать математическую модель, увидеть её на графике и получить точное число.',
+    stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['График', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
+    notes: [
+      'Какая формула была моделью вашей задачи и что в ней было результатом?',
+      'Что изменилось бы на графике, если увеличить скорость или приток?',
+      'Почему верхняя подпись шкалы не является готовым ответом?'
+    ]
+  },
+  {
+    name: 'Сборка алгоритма',
+    hue: '#ffc14d',
+    story: 'Автомат в школе ждёт точных команд. Соберите блок-схему, прогоните число и объясните, почему исполнитель не умеет догадываться.',
+    stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['Сборка схемы', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
+    notes: [
+      'Какой блок обозначает условие и почему он не прямоугольник?',
+      'Что выдал ваш алгоритм на тестовом числе и какая ветка сработала?',
+      'Придумайте своё «если …, то …, иначе …» из школьной жизни.'
+    ]
+  },
+  {
+    name: 'Карта маршрутов',
+    hue: '#3ee0a0',
+    story: 'Пять пунктов связаны дорогами с разной длиной. Перенесите веса на схему и найдите кратчайший путь. Побеждает не красивая линия, а меньшая сумма.',
+    stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['Граф', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
+    notes: [
+      'Чем таблица «объект — объект» отличается от таблицы свойств?',
+      'Какой маршрут вы нашли и почему он короче соседнего?',
+      'Где ещё, кроме дорог, удобна модель-граф?'
+    ]
   }
 ];
 
@@ -404,7 +453,13 @@ function normRoom(value) {
 
 function validRoom(value) {
   const room = normRoom(value);
-  return room.length >= 4 && room.length <= 32;
+  return room.length >= 4 && room.length <= 40;
+}
+
+function roomFromClass(value) {
+  const body = normRoom(value).replace(/^class-/, '');
+  if (body.length < 2) return '';
+  return 'class-' + body;
 }
 
 function mac(payload) {
@@ -668,7 +723,9 @@ function blankLesson(n, seed) {
     penalty: 0,
     total: null,
     grade: null,
-    code: null
+    code: null,
+    notes: ['', '', ''],
+    notesDone: false
   };
 }
 
@@ -1368,14 +1425,35 @@ function scoreStrip(lesson) {
     <span class="pill">${esc(trainer)}</span>
     <span class="pill">${blitz}</span>
     <span class="pill">Штраф ${live.penalty ? '−' + live.penalty : '0'}</span>
+    <span class="pill">В миссии ${fmtDuration(lesson.timeMs)} · план 45 мин</span>
   </div>`;
 }
 
 function stepsHtml(phase) {
-  const order = ['goal', 'theory', 'trainer', 'blitz', 'done'];
-  const labels = ['Цель', 'Теория', 'Тренажёр', 'Блиц', 'Оценка'];
-  const current = phase === 'done' ? 4 : Math.max(0, order.indexOf(phase));
+  const order = ['goal', 'theory', 'trainer', 'notes', 'blitz', 'done'];
+  const labels = ['Брифинг', 'Теория', 'Практика', 'Дневник', 'Блиц', 'Итог'];
+  const current = phase === 'done' ? 5 : Math.max(0, order.indexOf(phase));
   return `<div class="steps">${labels.map((label, index) => `<span class="step ${index < current ? 'is-done' : ''} ${index === current ? 'is-now' : ''}">${index + 1}. ${esc(label)}</span>`).join('')}</div>`;
+}
+
+function xpTotal() {
+  return [1, 2, 3, 4].reduce((sum, n) => {
+    const lesson = state.lessons[n];
+    return sum + (lesson && lesson.phase === 'done' ? lesson.total : 0);
+  }, 0);
+}
+
+function rankTitle(points) {
+  if (points >= 360) return 'Мастер моделирования';
+  if (points >= 300) return 'Хранитель схем';
+  if (points >= 200) return 'Инженер моделей';
+  if (points >= 100) return 'Исследователь';
+  return 'Стажёр лаборатории';
+}
+
+function stars(grade) {
+  const count = grade >= 5 ? 3 : grade === 4 ? 2 : grade === 3 ? 1 : 0;
+  return '★'.repeat(count) + '☆'.repeat(3 - count);
 }
 
 function rulesHtml() {
@@ -1383,6 +1461,7 @@ function rulesHtml() {
     <ul class="list-check">
       <li>Теория — до 15 баллов: 5 вопросов по 3. Балл только если ответ верный с первой попытки. Дальше без балла, но с пониманием.</li>
       <li>Тренажёр — 45 баллов. Каждая ошибка снимает 10. Сдать задание можно один раз.</li>
+      <li>Дневник миссии обязателен, но баллов не даёт. Он нужен, чтобы блиц открылся и учитель увидел ваши мысли.</li>
       <li>Блиц — 4 вопроса по 10 баллов, 45 секунд и одна попытка. На расчётных вопросах ответ быстрее 2 секунд не засчитывается.</li>
       <li>Уход с экрана во время тренажёра или блица фиксируется. Первый — предупреждение без штрафа. Дальше каждый следующий уход снимает 5 баллов: 2 ухода — минус 5, 3 — минус 10, и так до минус 20.</li>
       <li>Обновление страницы продолжает ту же попытку. Числа в задачах у каждого ученика свои.</li>
@@ -1404,17 +1483,22 @@ function renderLessons() {
       status = 'В работе';
       badge = '<span class="pill">…</span>';
     }
-    return `<article class="card lesson-card">
+    const mission = MISSIONS[n];
+    const starLine = lesson && lesson.phase === 'done' ? stars(lesson.grade) : '☆☆☆';
+    return `<article class="card lesson-card mission" style="--accent:${mission.hue}">
       <div class="num-orb">${n}</div>
       <div>
-        <h2>${esc(meta.title)}</h2>
+        <p class="eyebrow">Миссия ${n} · 45 мин</p>
+        <h2>${esc(mission.name)}</h2>
         <p class="fine">${esc(meta.teaser)}</p>
-        <p class="fine">${esc(status)}</p>
+        <p class="fine">${esc(starLine)} · ${esc(status)}</p>
       </div>
-      <div class="status-col">${badge}<button class="btn btn-primary" type="button" data-act="open-lesson" data-n="${n}">${lesson && lesson.phase === 'done' ? 'Открыть' : 'К уроку'}</button></div>
+      <div class="status-col">${badge}<button class="btn btn-primary" type="button" data-act="open-lesson" data-n="${n}">${lesson && lesson.phase === 'done' ? 'Открыть' : 'В миссию'}</button></div>
     </article>`;
   }).join('');
-  return `<p class="eyebrow">Уроки 1–4</p><h2 class="section-title">Здравствуйте, ${esc(state.student.firstName)}!</h2><p class="lead">Четыре классные работы. Оценка появляется после блица и защищена кодом для учителя.</p>${cards}`;
+  const points = xpTotal();
+  return `<p class="eyebrow">Игровое поле</p><h2 class="section-title">Здравствуйте, ${esc(state.student.firstName)}!</h2>
+    <article class="card hero-rank"><p class="eyebrow">${esc(rankTitle(points))}</p><p class="lead">${points} баллов из 400 · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p><p class="fine">Баллы уходят учителю сами. Код класса вводить не нужно.</p></article>${cards}`;
 }
 
 function honestyBlock(lesson) {
@@ -1437,6 +1521,7 @@ function ensureIdentity() {
   }
   if (typeof state.roomCode !== 'string') state.roomCode = '';
   if (!state.groupId) state.groupId = '1';
+  if (state.student) state.roomCode = roomFromClass(state.student.className);
 }
 
 function cloudStudentId() {
@@ -1461,7 +1546,8 @@ function progressPayload() {
       timeSec: Math.round((lesson.timeMs || 0) / 1000),
       focus: lesson.focusLostCount || 0,
       errors: lesson.trainer.errors || 0,
-      suspicious: lesson.suspiciousFast || 0
+      suspicious: lesson.suspiciousFast || 0,
+      notes: lesson.notesDone ? (lesson.notes || []) : []
     };
   });
   const homework = [1, 2, 3, 4].map((n) => ({
@@ -1503,17 +1589,15 @@ function publishProgress() {
 }
 
 function rankSection() {
-  const saved = state.roomCode || '';
   const connected = cloudOn();
-  return `<article class="card"><h3>Рейтинг класса</h3>
-    <p class="fine">Здесь видны только имя, сколько уроков сдано и сумма баллов. Тексты ДЗ, фото и уходы с экрана видны учителю, не одноклассникам.</p>
-    <label class="field">Код класса от учителя<input id="room-code" value="${esc(saved)}" placeholder="7а-лаборатория" autocomplete="off"></label>
-    <label class="field">Группа<select id="room-group">
+  return `<article class="card"><h3>Рейтинг группы ${esc(state.groupId || '1')}</h3>
+    <p class="fine">Класс ${esc(state.student.className)} отправляется учителю сам. Здесь только имена и баллы вашей группы.</p>
+    <label class="field">Группа, которую назвал учитель<select id="room-group">
       <option value="1" ${state.groupId === '1' ? 'selected' : ''}>Группа 1</option>
       <option value="2" ${state.groupId === '2' ? 'selected' : ''}>Группа 2</option>
       <option value="3" ${state.groupId === '3' ? 'selected' : ''}>Группа 3</option>
     </select></label>
-    <button class="btn btn-primary" type="button" data-act="save-room">Сохранить код и отправить свои баллы</button>
+    <button class="btn btn-primary" type="button" data-act="save-room">Запомнить группу</button>
     ${connected ? '<div id="rank-wrap"><p class="fine">Загружаю рейтинг…</p></div>' : '<p class="fine">Общий рейтинг появится, когда учитель подключит журнал класса. Свои оценки выше уже сохранены на этом телефоне.</p>'}
   </article>`;
 }
@@ -1542,7 +1626,7 @@ function teacherJournalSection() {
     <div class="stack">
       <label class="field">Почта<input id="teacher-email" autocomplete="username"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
-      <label class="field">Код класса<input id="teacher-room" value="${esc(state.roomCode || '')}" placeholder="7а-лаборатория"></label>
+      <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
       <button class="btn btn-primary" type="button" data-act="teacher-register">Создать вход ведущего</button>
       <button class="btn btn-ghost" type="button" data-act="colleague-register">Создать вход коллеги</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть журнал</button>
@@ -1559,7 +1643,11 @@ function teacherJournalSection() {
 function journalCards(rows) {
   if (!rows.length) return '<p class="fine">По этому коду ещё нет работ.</p>';
   return rows.map((row) => {
-    const lessons = (row.lessons || []).map((lesson) => lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : `Урок ${lesson.n}: не сдан`).join('\n');
+    const lessons = (row.lessons || []).map((lesson) => {
+      const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : `Урок ${lesson.n}: не сдан`;
+      const notes = (lesson.notes || []).filter(Boolean).map((line, index) => `дневник ${index + 1}: ${line}`).join('\n');
+      return notes ? `${head}\n${notes}` : head;
+    }).join('\n');
     const homework = (row.homework || []).map((item) => {
       const text = item.done ? `<div class="readout">${esc(item.text)}</div>` : '<p class="fine">Не сдано</p>';
       const photo = item.photoUrl ? `<a href="${esc(item.photoUrl)}" target="_blank" rel="noopener">Открыть фото</a><img class="hw-photo" alt="Фото домашнего задания ${item.n}" src="${esc(item.photoUrl)}">` : '';
@@ -1722,15 +1810,26 @@ function lessonHtml(lesson) {
   if (lesson.phase === 'goal') body = goalHtml(lesson);
   if (lesson.phase === 'theory') body = theoryHtml(lesson);
   if (lesson.phase === 'trainer') body = trainerHtml(lesson);
+  if (lesson.phase === 'notes') body = notesHtml(lesson);
   if (lesson.phase === 'blitz') body = blitzHtml(lesson);
-  return `${stepsHtml(lesson.phase)}${scoreStrip(lesson)}${back}<p class="eyebrow">Урок ${lesson.n}</p><h2 class="section-title">${esc(meta.title)}</h2>${body}`;
+  const mission = MISSIONS[lesson.n];
+  return `${stepsHtml(lesson.phase)}${scoreStrip(lesson)}${back}<p class="eyebrow" style="color:${mission.hue}">Миссия ${lesson.n} · 45 минут</p><h2 class="section-title">${esc(mission.name)}</h2>${body}`;
 }
 
 function goalHtml(lesson) {
   const meta = META[lesson.n];
-  return `<article class="card"><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>${rulesHtml()}
-    <button class="btn btn-primary" type="button" data-act="start-lesson">Начать изучение</button>
-    <p class="fine">После старта попытка закрепляется на этом устройстве.</p></article>`;
+  const mission = MISSIONS[lesson.n];
+  const plan = mission.stations.map(([name, time]) => `<span class="station"><b>${esc(name)}</b><small>${esc(time)}</small></span>`).join('');
+  return `<article class="card mission" style="--accent:${mission.hue}"><p>${esc(mission.story)}</p><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul><h3>План на 45 минут</h3><div class="stations">${plan}</div>${rulesHtml()}
+    <button class="btn btn-primary" type="button" data-act="start-lesson">Начать миссию</button>
+    <p class="fine">После старта попытка закрепляется на этом устройстве. Результат уйдёт учителю сам.</p></article>`;
+}
+
+function notesHtml(lesson) {
+  if (!lesson.notes) lesson.notes = ['', '', ''];
+  const prompts = MISSIONS[lesson.n].notes;
+  const fields = prompts.map((prompt, index) => `<label class="field">${esc(prompt)}<textarea id="note-${index}" maxlength="400">${esc(lesson.notes[index] || '')}</textarea></label>`).join('');
+  return `<article class="card"><h3>Дневник миссии</h3><p>Это не контрольная: баллы за дневник не ставятся. Без трёх живых ответов блиц не откроется. Пустые строки и «12345» не подойдут.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
 }
 
 function theoryHtml(lesson) {
@@ -1752,7 +1851,8 @@ function theoryHtml(lesson) {
   const note = card.solved
     ? `<p class="${card.points ? 'ok-text' : 'warn-text'}">${card.points ? 'Верно с первой попытки: 3 балла.' : 'Уже не первая попытка: балл за карточку 0, но ход мысли сохранён.'}</p><p>${esc(card.explain)}</p>`
     : `<p class="js-readgate fine">${locked ? `Прочитайте теорию: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
-  return `<article class="card no-cheat"><p class="pill">Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3>${card.body}${note}${options}${next}</article>`;
+  const hue = MISSIONS[lesson.n].hue;
+  return `<article class="card no-cheat mission" style="--accent:${hue}"><p class="pill">Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3>${card.body}${note}${options}${next}</article>`;
 }
 
 function trainerHtml(lesson) {
@@ -1782,7 +1882,7 @@ function trainer1(lesson) {
       <button class="btn ${trainer.answers[item.id] === 'inf' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="inf" ${trainer.classSubmitted ? 'disabled' : ''}>Информационная</button>
     </div>${trainer.classSubmitted ? `<p class="${trainer.answers[item.id] === item.type ? 'ok-text' : 'bad-text'}">Верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}</p>` : ''}</div>`).join('');
   const action = trainer.classSubmitted
-    ? '<button class="btn btn-primary" type="button" data-act="go-blitz">К блиц-тесту</button>'
+    ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
     : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать классификацию</button>';
   return `<article class="card no-cheat"><h3>Классификатор моделей</h3><p>Распределите 8 примеров. Неверная карточка — минус 10 из того же банка.</p></article>${cards}${action}`;
 }
@@ -1828,7 +1928,7 @@ function trainer2(lesson) {
   if (lesson.trainer.stage === 'extra') {
     return `<article class="card no-cheat"><h3>Промежуточная величина</h3><p>${esc(scenario.story)}</p><label class="field">${esc(scenario.extraAsk)}<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать величину</button>${canvas}${sliders}</article>`;
   }
-  return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p><button class="btn btn-primary" type="button" data-act="go-blitz">К блиц-тесту</button></article>`;
+  return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
 function shapeHtml(shape) {
@@ -1872,7 +1972,7 @@ function trainer3(lesson) {
       : `<label class="field">Ответ<input id="trace-num" inputmode="numeric" autocomplete="off"></label>`;
     return `<article class="card no-cheat"><h3>Трассировка верной схемы</h3>${correctList}<p>${esc(algo.challenge.text)}</p>${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать трассировку</button></article>`;
   }
-  return `<article class="card"><h3>Трассировка сдана</h3><p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-blitz">К блиц-тесту</button></article>`;
+  return `<article class="card"><h3>Трассировка сдана</h3><p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
 function graphTable(graph) {
@@ -1916,7 +2016,7 @@ function trainer4(lesson) {
     return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3><p>От «Дома» до «Стадиона» через «${esc(graph.names[graph.via])}». Введите точную длину в километрах.</p>${table}<label class="field">Длина пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
-  return `<article class="card"><h3>Маршрут проверен</h3><p>${esc(best.path.map((id) => graph.names[id]).join(' → '))}. Длина ${best.len} км.</p><button class="btn btn-primary" type="button" data-act="go-blitz">К блиц-тесту</button></article>`;
+  return `<article class="card"><h3>Маршрут проверен</h3><p>${esc(best.path.map((id) => graph.names[id]).join(' → '))}. Длина ${best.len} км.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
 function blitzHtml(lesson) {
@@ -1938,11 +2038,15 @@ function blitzHtml(lesson) {
 }
 
 function resultHtml(lesson) {
-  return `<article class="card result-hero">${wmLayer()}<div class="content big-grade">
+  const mission = MISSIONS[lesson.n];
+  return `<article class="card result-hero mission" style="--accent:${mission.hue}">${wmLayer()}<div class="content big-grade">
+      <p class="eyebrow">Миссия пройдена</p>
+      <p class="stars">${esc(stars(lesson.grade))}</p>
       <span class="badge grade-${lesson.grade}">${lesson.grade}</span>
       <strong>${lesson.grade}</strong>
-      <p>${esc(gradeWord(lesson.grade))}</p>
+      <p>${esc(gradeWord(lesson.grade))} · ${esc(rankTitle(xpTotal()))}</p>
       <p>${lesson.total} из 100</p>
+      <p class="fine">Баллы уже уходят учителю сами. Код ниже — для сверки, его не нужно диктовать одноклассникам.</p>
     </div></article>
     <article class="card"><table class="breakdown">
       <tr><td>Теория</td><td>${lesson.theoryScore}/15</td></tr>
@@ -2277,8 +2381,11 @@ function handleAuth(event) {
     salt: hashString(String(Date.now()) + ':' + Math.random()).toString(16),
     createdAt: Date.now()
   };
+  state.groupId = (document.querySelector('input[name="signupGroup"]:checked') || {}).value || '1';
+  state.roomCode = roomFromClass(className);
   state.hw = emptyHw();
   save();
+  publishProgress();
   location.hash = 'lessons';
   render({ toTop: true });
 }
@@ -2493,13 +2600,11 @@ function handleAct(act, btn) {
   if (act === 'copy-code') { copyText(btn.dataset.code || ''); return; }
   if (act === 'verify') { runVerify(); return; }
   if (act === 'save-room') {
-    const room = normRoom($('room-code').value);
     const group = ($('room-group') && $('room-group').value) || '1';
-    if (!validRoom(room)) { toast('Код класса нужен длиннее, например 7а-лаборатория.'); return; }
-    state.roomCode = room;
     state.groupId = group;
+    state.roomCode = roomFromClass(state.student.className);
     save();
-    toast('Код класса сохранён');
+    toast('Группа запомнена. Баллы уходят учителю сами.');
     publishProgress();
     render();
     return;
@@ -2507,10 +2612,10 @@ function handleAct(act, btn) {
   if (act === 'colleague-register') {
     const email = $('teacher-email').value.trim();
     const password = $('teacher-pass').value;
-    const room = normRoom($('teacher-room').value);
+    const room = roomFromClass($('teacher-room').value);
     const out = $('journal-out');
     if (!validRoom(room) || !email || password.length < 6) {
-      out.innerHTML = '<p class="field-error">Нужны почта, пароль от 6 символов и тот же код класса.</p>';
+      out.innerHTML = '<p class="field-error">Нужны почта, пароль от 6 символов и класс, например 7А.</p>';
       return;
     }
     LabCloud.teacherLogin(email, password, true).then(() => LabCloud.myAccess(room)).then((access) => {
@@ -2525,14 +2630,12 @@ function handleAct(act, btn) {
   if (act === 'teacher-register') {
     const email = $('teacher-email').value.trim();
     const password = $('teacher-pass').value;
-    const room = normRoom($('teacher-room').value);
+    const room = roomFromClass($('teacher-room').value);
     const out = $('journal-out');
     if (!validRoom(room) || !email || password.length < 6) {
-      out.innerHTML = '<p class="field-error">Нужны почта, пароль от 6 символов и код класса.</p>';
+      out.innerHTML = '<p class="field-error">Нужны почта, пароль от 6 символов и класс, например 7А.</p>';
       return;
     }
-    state.roomCode = room;
-    save();
     LabCloud.teacherLogin(email, password, true).then(() => LabCloud.claimMaster(room, 'Усеинов Эмир Рустемович')).then(() => LabCloud.teacherJournal(room)).then((result) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="ok-text">Вы ведущий. Код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
@@ -2543,12 +2646,12 @@ function handleAct(act, btn) {
     return;
   }
   if (act === 'grant-teacher') {
-    const room = normRoom($('teacher-room').value);
+    const room = roomFromClass($('teacher-room').value);
     const uid = $('colleague-uid').value.trim();
     const groups = Array.from(document.querySelectorAll('.grant-group:checked')).map((node) => node.value);
     const out = $('journal-out');
     if (!validRoom(room) || uid.length < 8 || !groups.length) {
-      out.innerHTML = '<p class="field-error">Нужны код класса, код доступа коллеги и хотя бы одна группа.</p>';
+      out.innerHTML = '<p class="field-error">Нужны класс, код доступа коллеги и хотя бы одна группа.</p>';
       return;
     }
     LabCloud.grantTeacher(room, uid, groups).then(() => {
@@ -2561,9 +2664,9 @@ function handleAct(act, btn) {
   if (act === 'teacher-journal') {
     const email = $('teacher-email').value.trim();
     const password = $('teacher-pass').value;
-    const room = normRoom($('teacher-room').value);
+    const room = roomFromClass($('teacher-room').value);
     const out = $('journal-out');
-    if (!validRoom(room)) { out.innerHTML = '<p class="field-error">Введите код класса, который вы дали ученикам.</p>'; return; }
+    if (!validRoom(room)) { out.innerHTML = '<p class="field-error">Напишите класс так же, как ученики: 7А.</p>'; return; }
     out.innerHTML = '<p class="fine">Открываю журнал…</p>';
     LabCloud.teacherLogin(email, password).then(() => LabCloud.teacherJournal(room)).then((result) => {
       const node = $('journal-out');
@@ -2728,8 +2831,26 @@ function handleAct(act, btn) {
     render({ toTop: true });
     return;
   }
-  if (act === 'go-blitz') {
-    if (!trainerReady(lesson)) { toast('Сначала завершите тренажёр.'); return; }
+  if (act === 'go-notes') {
+    if (!trainerReady(lesson)) { toast('Сначала завершите практику.'); return; }
+    if (!lesson.notes) lesson.notes = ['', '', ''];
+    lesson.phase = 'notes';
+    save();
+    render({ toTop: true });
+    return;
+  }
+  if (act === 'notes-save') {
+    if (lesson.phase !== 'notes') return;
+    const notes = [0, 1, 2].map((index) => {
+      const node = $('note-' + index);
+      return node ? node.value.trim() : '';
+    });
+    if (notes.some((text) => !isMeaningful(text, 16))) {
+      toast('В каждом ответе нужны хотя бы два слова своими словами.');
+      return;
+    }
+    lesson.notes = notes;
+    lesson.notesDone = true;
     if (!lesson.blitz.questions.length) attachBlitz(lesson);
     lesson.phase = 'blitz';
     if (!lesson.cheatArmedAt) lesson.cheatArmedAt = Date.now();
@@ -2948,8 +3069,9 @@ function boot() {
   }, 250);
   if (!location.hash) location.hash = 'lessons';
   render({ toTop: true });
+  if (state && state.student) publishProgress();
   const opened = currentLessonNumber();
-  if (opened && state.lessons[opened] && ['theory', 'trainer', 'blitz'].indexOf(state.lessons[opened].phase) >= 0) {
+  if (opened && state.lessons[opened] && ['theory', 'trainer', 'notes', 'blitz'].indexOf(state.lessons[opened].phase) >= 0) {
     toast('Продолжаем урок с сохранённого места. Обновление страницы не сбрасывает ошибки.');
   }
 }
