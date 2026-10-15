@@ -1613,6 +1613,7 @@ function publishProgress(options) {
   const loud = !!(options && options.loud);
   if (!cloudOn() || !validRoom(state.roomCode)) return Promise.resolve();
   return LabCloud.publish(progressPayload()).then((result) => {
+    if (result && result.hold) return;
     if (result && result.ok === false) {
       state.cloudNote = result.reason || cloudErrorText();
       if (loud) toast(state.cloudNote);
@@ -1665,28 +1666,31 @@ function teacherJournalSection() {
     </article>`;
   }
   return `<article class="card"><h3>Журнал всего класса</h3>
-    <p>Автор и ведущий: Усеинов Эмир Рустемович. Он видит все группы. Коллега после входа копирует свой код доступа, а вы открываете ей только нужные группы.</p>
-    <p class="fine">Если вход пишет unauthorized-domain, в Firebase Authentication добавьте домен r1m1r.github.io.</p>
+    <p>Автор и ведущий: Усеинов Эмир Рустемович. Один раз закрепите вход за классом. Дальше на этом телефоне достаточно кнопки «Открыть журнал».</p>
     <div class="stack">
       <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
-      <button class="btn btn-primary" type="button" data-act="teacher-register">Создать вход ведущего</button>
-      <button class="btn btn-ghost" type="button" data-act="colleague-register">Создать вход коллеги</button>
-      <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть журнал</button>
-      <p class="fine">После первого входа на этом телефоне пароль можно не вводить: достаточно класса и кнопки «Открыть журнал».</p>
-      <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
-      <label class="fine"><input type="checkbox" class="grant-group" value="1"> Группа 1</label>
-      <label class="fine"><input type="checkbox" class="grant-group" value="2"> Группа 2</label>
-      <label class="fine"><input type="checkbox" class="grant-group" value="3"> Группа 3</label>
-      <button class="btn btn-ghost" type="button" data-act="grant-teacher">Открыть коллеге выбранные группы</button>
+      <button class="btn btn-primary" type="button" data-act="teacher-journal">Открыть журнал</button>
+      <button class="btn btn-ghost" type="button" data-act="teacher-register">Закрепить меня ведущим этого класса</button>
+      <button class="btn btn-ghost" type="button" data-act="teacher-logout">Выйти из входа учителя</button>
+      <details class="rules">
+        <summary>Доступ коллеги</summary>
+        <p class="fine">На её телефоне та же вкладка: её почта, пароль и кнопка «Показать мой код доступа». Код вставьте сюда и отметьте только её группы.</p>
+        <button class="btn btn-ghost" type="button" data-act="colleague-register">Показать мой код доступа</button>
+        <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
+        <label class="fine"><input type="checkbox" class="grant-group" value="1"> Группа 1</label>
+        <label class="fine"><input type="checkbox" class="grant-group" value="2"> Группа 2</label>
+        <label class="fine"><input type="checkbox" class="grant-group" value="3"> Группа 3</label>
+        <button class="btn btn-ghost" type="button" data-act="grant-teacher">Открыть коллеге выбранные группы</button>
+      </details>
     </div>
     <div id="journal-out"></div>
   </article>`;
 }
 
 function journalCards(rows) {
-  if (!rows.length) return '<p class="fine">По этому коду ещё нет работ.</p>';
+  if (!rows.length) return '<p class="fine">В этом классе пока нет сданных работ.</p>';
   return rows.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
       const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : `Урок ${lesson.n}: не сдан`;
@@ -2704,6 +2708,14 @@ function handleAct(act, btn) {
     }).catch((error) => {
       out.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
     });
+    return;
+  }
+  if (act === 'teacher-logout') {
+    LabCloud.teacherLogout().then(() => {
+      toast('Вход учителя закрыт. Этот телефон снова может отправлять баллы ученика.');
+      publishProgress();
+      render();
+    }).catch((error) => toast(teacherErrorText(error)));
     return;
   }
   if (act === 'teacher-journal') {

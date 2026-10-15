@@ -46,11 +46,16 @@
     const ok = await ensure();
     if (!ok) return null;
     const auth = firebase.auth();
-    if (!auth.currentUser || !auth.currentUser.isAnonymous) {
-      if (auth.currentUser && !auth.currentUser.isAnonymous) await auth.signOut();
-      await auth.signInAnonymously();
-    }
+    if (auth.currentUser && !auth.currentUser.isAnonymous) return null;
+    if (!auth.currentUser) await auth.signInAnonymously();
     return auth.currentUser;
+  }
+
+  async function teacherLogout() {
+    const ok = await ensure();
+    if (!ok || !firebase.auth) return;
+    const user = firebase.auth().currentUser;
+    if (user && !user.isAnonymous) await firebase.auth().signOut();
   }
 
   function root() {
@@ -67,7 +72,11 @@
 
   async function publish(payload) {
     const user = await studentAuth();
-    if (!user) return { ok: false, reason: 'Журнал класса ещё не подключён' };
+    if (!user) {
+      const signedIn = window.firebase && firebase.auth && firebase.auth().currentUser;
+      if (signedIn && !signedIn.isAnonymous) return { ok: false, hold: true };
+      return { ok: false, reason: 'Журнал класса ещё не подключён' };
+    }
     const room = payload.roomId;
     const groupId = String(payload.groupId || '1');
     const id = payload.studentId;
@@ -236,6 +245,7 @@
     enabled,
     publish,
     currentTeacher,
+    teacherLogout,
     watchBoard,
     teacherLogin,
     claimMaster,
