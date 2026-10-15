@@ -398,6 +398,15 @@ function validClass(value) {
   return /^\d{1,2}[А-ЯЁ]$/.test(normClass(value));
 }
 
+function normRoom(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '').replace(/ё/g, 'е').replace(/[^a-zа-я0-9-]/g, '');
+}
+
+function validRoom(value) {
+  const room = normRoom(value);
+  return room.length >= 4 && room.length <= 32;
+}
+
 function mac(payload) {
   let h = hashString(String(payload) + '|' + SECRET);
   let out = '';
@@ -1417,6 +1426,137 @@ function honestyBlock(lesson) {
   return main + fast;
 }
 
+function cloudOn() {
+  return window.LabCloud && LabCloud.enabled();
+}
+
+function ensureIdentity() {
+  if (!state.deviceSecret) {
+    state.deviceSecret = hashString(String(Date.now()) + ':' + Math.random()).toString(16);
+    save();
+  }
+  if (typeof state.roomCode !== 'string') state.roomCode = '';
+}
+
+function cloudStudentId() {
+  return hashString([
+    normRoom(state.roomCode),
+    normPerson(state.student.lastName),
+    normPerson(state.student.firstName),
+    normClass(state.student.className)
+  ].join('|')).toString(16);
+}
+
+function progressPayload() {
+  const lessons = [1, 2, 3, 4].map((n) => {
+    const lesson = state.lessons[n];
+    if (!lesson || lesson.phase !== 'done') return { n, done: false, grade: null, total: null };
+    return {
+      n,
+      done: true,
+      grade: lesson.grade,
+      total: lesson.total,
+      code: lesson.code,
+      timeSec: Math.round((lesson.timeMs || 0) / 1000),
+      focus: lesson.focusLostCount || 0,
+      errors: lesson.trainer.errors || 0,
+      suspicious: lesson.suspiciousFast || 0
+    };
+  });
+  const homework = [1, 2, 3, 4].map((n) => ({
+    n,
+    done: !!state.hw[n].done,
+    text: state.hw[n].done ? hwPlain(n, state.hw[n]) : '',
+    photoUrl: state.hw[n].photoUrl || ''
+  }));
+  const doneLessons = lessons.filter((lesson) => lesson.done);
+  return {
+    roomId: normRoom(state.roomCode),
+    studentId: cloudStudentId(),
+    board: {
+      lastName: state.student.lastName,
+      firstName: state.student.firstName,
+      className: state.student.className,
+      grades: lessons.map((lesson) => lesson.grade),
+      points: doneLessons.reduce((sum, lesson) => sum + (lesson.total || 0), 0),
+      lessonsDone: doneLessons.length,
+      hwDone: homework.filter((item) => item.done).length
+    },
+    work: {
+      lastName: state.student.lastName,
+      firstName: state.student.firstName,
+      className: state.student.className,
+      lessons,
+      homework
+    }
+  };
+}
+
+function publishProgress() {
+  if (!cloudOn() || !validRoom(state.roomCode)) return Promise.resolve();
+  return LabCloud.publish(progressPayload()).then((result) => {
+    if (result && result.ok === false && result.reason) toast(result.reason);
+  }).catch((error) => toast(error.message || 'Не удалось отправить журнал'));
+}
+
+function rankSection() {
+  const saved = state.roomCode || '';
+  const connected = cloudOn();
+  return `<article class="card"><h3>Рейтинг класса</h3>
+    <p class="fine">Здесь видны только имя, сколько уроков сдано и сумма баллов. Тексты ДЗ, фото и уходы с экрана видны учителю, не одноклассникам.</p>
+    <label class="field">Код класса от учителя<input id="room-code" value="${esc(saved)}" placeholder="7а-лаборатория" autocomplete="off"></label>
+    <button class="btn btn-primary" type="button" data-act="save-room">Сохранить код и отправить свои баллы</button>
+    ${connected ? '<div id="rank-wrap"><p class="fine">Загружаю рейтинг…</p></div>' : '<p class="fine">Общий рейтинг появится, когда учитель подключит журнал класса. Свои оценки выше уже сохранены на этом телефоне.</p>'}
+  </article>`;
+}
+
+function rankTable(rows) {
+  if (!rows.length) return '<p class="fine">В этом классе пока никто не отправил баллы.</p>';
+  const mine = validRoom(state.roomCode) ? cloudStudentId() : '';
+  const body = rows.map((row, index) => {
+    const grades = (row.grades || []).map((grade) => grade || '–').join(' ');
+    return `<tr class="${row.id === mine ? 'is-me' : ''}"><td>${index + 1}</td><td>${esc(row.lastName)} ${esc(row.firstName)}</td><td>${row.points || 0}</td><td>${row.lessonsDone || 0}/4</td><td>${esc(grades)}</td></tr>`;
+  }).join('');
+  return `<div class="table-wrap"><table class="rank"><tr><th>#</th><th>Ученик</th><th>Баллы</th><th>Уроки</th><th>Оценки</th></tr>${body}</table></div>`;
+}
+
+function teacherJournalSection() {
+  if (!cloudOn()) {
+    return `<article class="card"><h3>Журнал всего класса</h3>
+      <p>Сейчас каждый телефон хранит только своего ученика. Коды и отчёты выше уже проверяют оценку. Общий список, рейтинг и фото появятся после одного подключения Firebase: анонимный вход учеников, вход учителя по почте и правила из файлов firestore.rules и storage.rules.</p>
+      <p class="fine">Фото не обязательно. Имеет смысл просить снимок тетради ко 2-му ДЗ и снимок своей модели к 4-му. Текста достаточно, чтобы сдать работу.</p>
+    </article>`;
+  }
+  return `<article class="card"><h3>Журнал всего класса</h3>
+    <p>Войдите почтой учителя. Ученики этот список не видят: в рейтинге у них только имена и баллы.</p>
+    <div class="stack">
+      <label class="field">Почта<input id="teacher-email" autocomplete="username"></label>
+      <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
+      <label class="field">Код класса<input id="teacher-room" value="${esc(state.roomCode || '')}" placeholder="7а-лаборатория"></label>
+      <button class="btn btn-primary" type="button" data-act="teacher-journal">Открыть журнал</button>
+    </div>
+    <div id="journal-out"></div>
+  </article>`;
+}
+
+function journalCards(rows) {
+  if (!rows.length) return '<p class="fine">По этому коду ещё нет работ.</p>';
+  return rows.map((row) => {
+    const lessons = (row.lessons || []).map((lesson) => lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : `Урок ${lesson.n}: не сдан`).join('\n');
+    const homework = (row.homework || []).map((item) => {
+      const text = item.done ? `<div class="readout">${esc(item.text)}</div>` : '<p class="fine">Не сдано</p>';
+      const photo = item.photoUrl ? `<a href="${esc(item.photoUrl)}" target="_blank" rel="noopener">Открыть фото</a><img class="hw-photo" alt="Фото домашнего задания ${item.n}" src="${esc(item.photoUrl)}">` : '';
+      return `<h3>ДЗ ${item.n}</h3>${text}${photo}`;
+    }).join('');
+    return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, ${esc(row.className)}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
+  }).join('');
+}
+
+function photoField(n, label) {
+  if (!cloudOn() || state.hw[n].done) return '';
+  return `<label class="field">${label}<input type="file" accept="image/*" capture="environment" data-photo="${n}"></label><p class="fine">Фото необязательно. Без него ДЗ тоже принимается.</p>`;
+}
+
 function renderGrades() {
   const cards = [1, 2, 3, 4].map((n) => {
     const lesson = state.lessons[n];
@@ -1445,7 +1585,8 @@ function renderGrades() {
     <p class="lead">Класс ${esc(state.student.className)} · <span data-clock>${esc(clockText())}</span></p>
     ${cards}
     <button class="btn btn-primary" type="button" data-act="copy-report">Скопировать защищённый отчёт для учителя</button>
-    <button class="btn btn-ghost" type="button" data-act="download-report">Скачать сертификат/отчёт (.html)</button>`;
+    <button class="btn btn-ghost" type="button" data-act="download-report">Скачать сертификат/отчёт (.html)</button>
+    ${rankSection()}`;
 }
 
 function fieldInput(label, bind, value, area, placeholder) {
@@ -1486,7 +1627,7 @@ function editorHw(n, hw) {
       ${fieldInput('Номер и условие', `2.tasks.${index}.title`, task.title, true)}
       ${fieldInput('Исходные данные', `2.tasks.${index}.data`, task.data, true)}
       ${fieldInput('Формула', `2.tasks.${index}.formula`, task.formula)}
-      ${fieldInput('Расчёт и ответ', `2.tasks.${index}.solution`, task.solution, true)}`).join('')}<button class="btn btn-primary" type="button" data-act="hw-save" data-n="2">Сдать ДЗ 2</button></div>`;
+      ${fieldInput('Расчёт и ответ', `2.tasks.${index}.solution`, task.solution, true)}`).join('')}${photoField(2, 'Фото решения в тетради, необязательно')}<button class="btn btn-primary" type="button" data-act="hw-save" data-n="2">Сдать ДЗ 2</button></div>`;
   }
   if (n === 3) {
     const options = HW_TOPICS.map((topic) => `<option ${hw.topic === topic ? 'selected' : ''}>${esc(topic)}</option>`).join('');
@@ -1500,6 +1641,7 @@ function editorHw(n, hw) {
       <button class="btn ${tableMode ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="hw-mode" data-mode="table">Таблица</button>
       <button class="btn ${tableMode ? 'btn-ghost' : 'btn-primary'}" type="button" data-act="hw-mode" data-mode="graph">Граф</button>
     </div>${tableMode ? tableEditor(hw) : graphEditor(hw)}
+    ${photoField(4, 'Фото или скриншот своей модели, необязательно')}
     <button class="btn btn-primary" type="button" data-act="hw-save" data-n="4">Сдать ДЗ 4</button></div>`;
 }
 
@@ -1551,7 +1693,8 @@ function renderTeacher() {
       </div>
       <div id="verify-out"></div>
     </article>
-    <article class="card"><h3>Как читать код</h3><p class="mono">Uурок-оценка-баллы-Tсекунды-Fуходы-Eошибки-Sбыстрые-КОД</p><p class="fine">Последние 4 символа сходятся только при тех же ФИО, классе и числах. Секретная часть хранится в приложении: правки скриншота или localStorage без пересчёта кода учитель увидит.</p></article>`;
+    <article class="card"><h3>Как читать код</h3><p class="mono">Uурок-оценка-баллы-Tсекунды-Fуходы-Eошибки-Sбыстрые-КОД</p><p class="fine">Последние 4 символа сходятся только при тех же ФИО, классе и числах. Секретная часть хранится в приложении: правки скриншота или localStorage без пересчёта кода учитель увидит.</p></article>
+    ${teacherJournalSection()}`;
 }
 
 function lessonHtml(lesson) {
@@ -1830,7 +1973,15 @@ function render(options) {
   };
   Object.keys(nodes).forEach((key) => nodes[key].classList.toggle('is-hidden', key !== view));
   if (view === 'lessons') nodes.lessons.innerHTML = renderLessons();
-  if (view === 'grades') nodes.grades.innerHTML = renderGrades();
+  if (view === 'grades') {
+    nodes.grades.innerHTML = renderGrades();
+    if (cloudOn() && validRoom(state.roomCode)) {
+      LabCloud.watchBoard(normRoom(state.roomCode), (rows) => {
+        const wrap = $('rank-wrap');
+        if (wrap) wrap.innerHTML = rankTable(rows);
+      });
+    }
+  }
   if (view === 'hw') nodes.hw.innerHTML = renderHw();
   if (view === 'teacher') nodes.teacher.innerHTML = renderTeacher();
   if (view === 'lesson') {
@@ -1975,6 +2126,7 @@ function finishLesson(n) {
   lesson.finishedAt = Date.now();
   lesson.code = formatCode(state.student, lesson);
   save();
+  publishProgress();
   if (currentLessonNumber() === n) render({ toTop: true });
 }
 
@@ -2323,6 +2475,32 @@ function handleAct(act, btn) {
   }
   if (act === 'copy-code') { copyText(btn.dataset.code || ''); return; }
   if (act === 'verify') { runVerify(); return; }
+  if (act === 'save-room') {
+    const room = normRoom($('room-code').value);
+    if (!validRoom(room)) { toast('Код класса нужен длиннее, например 7а-лаборатория.'); return; }
+    state.roomCode = room;
+    save();
+    toast('Код класса сохранён');
+    publishProgress();
+    render();
+    return;
+  }
+  if (act === 'teacher-journal') {
+    const email = $('teacher-email').value.trim();
+    const password = $('teacher-pass').value;
+    const room = normRoom($('teacher-room').value);
+    const out = $('journal-out');
+    if (!validRoom(room)) { out.innerHTML = '<p class="field-error">Введите код класса, который вы дали ученикам.</p>'; return; }
+    out.innerHTML = '<p class="fine">Открываю журнал…</p>';
+    LabCloud.teacherLogin(email, password).then(() => LabCloud.teacherJournal(room)).then((rows) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="ok-text">Сдали работы: ${rows.length}</p>` + journalCards(rows);
+    }).catch((error) => {
+      const node = $('journal-out');
+      if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось открыть журнал')}</p>`;
+    });
+    return;
+  }
   if (act === 'hw-mode') {
     readHwFromDom();
     state.hw[4].mode = btn.dataset.mode;
@@ -2346,10 +2524,23 @@ function handleAct(act, btn) {
     if (result.ok) {
       state.hw[n].done = true;
       state.hw[n].savedAt = Date.now();
+      const photoInput = document.querySelector(`[data-photo="${n}"]`);
+      const photo = photoInput && photoInput.files ? photoInput.files[0] : null;
+      save();
+      render();
       toast('Домашняя работа сдана');
+      if (photo && cloudOn() && validRoom(state.roomCode)) {
+        const payload = progressPayload();
+        LabCloud.uploadPhoto(payload.roomId, payload.studentId, n, photo).then((url) => {
+          state.hw[n].photoUrl = url;
+          save();
+          return publishProgress();
+        }).catch((error) => toast(error.message || 'Фото не отправилось, текст ДЗ сохранён'));
+      } else publishProgress();
+    } else {
+      save();
+      render();
     }
-    save();
-    render();
     const card = $('hw-' + n);
     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
@@ -2616,6 +2807,7 @@ function boot() {
   const link = document.querySelector('link[data-lab-css]');
   if (link) document.head.appendChild(link);
   state = loadState();
+  if (state && state.student) ensureIdentity();
   $('auth-form').addEventListener('submit', handleAuth);
   document.body.addEventListener('click', (event) => {
     const button = event.target.closest('[data-act]');
