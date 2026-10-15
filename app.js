@@ -66,6 +66,7 @@ const MISSIONS = [
   null,
   {
     name: 'Охота за признаками',
+    icon: 'fa-solid fa-magnifying-glass',
     hue: '#3de0ff',
     story: 'Лаборатория получила заказ: отличить настоящий объект от модели и оставить только признаки, которые нужны для цели. Остальное — маскировка.',
     stations: [['Брифинг', '5 мин'], ['Теория', '12 мин'], ['Практика', '15 мин'], ['Дневник', '8 мин'], ['Блиц', '5 мин']],
@@ -77,6 +78,7 @@ const MISSIONS = [
   },
   {
     name: 'Лаборатория формул',
+    icon: 'fa-solid fa-chart-line',
     hue: '#9b8cff',
     story: 'Дрон и бак с водой подчиняются формулам. Ваша миссия — собрать математическую модель, увидеть её на графике и получить точное число.',
     stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['График', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
@@ -88,6 +90,7 @@ const MISSIONS = [
   },
   {
     name: 'Сборка алгоритма',
+    icon: 'fa-solid fa-shapes',
     hue: '#ffc14d',
     story: 'Автомат в школе ждёт точных команд. Соберите блок-схему, прогоните число и объясните, почему исполнитель не умеет догадываться.',
     stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['Сборка схемы', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
@@ -99,6 +102,7 @@ const MISSIONS = [
   },
   {
     name: 'Карта маршрутов',
+    icon: 'fa-solid fa-map-location-dot',
     hue: '#3ee0a0',
     story: 'Пять пунктов связаны дорогами с разной длиной. Перенесите веса на схему и найдите кратчайший путь. Побеждает не красивая линия, а меньшая сумма.',
     stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['Граф', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
@@ -1518,20 +1522,20 @@ function renderLessons() {
     }
     const mission = MISSIONS[n];
     const starLine = lesson && lesson.phase === 'done' ? stars(lesson.grade) : '☆☆☆';
-    return `<article class="card lesson-card mission" style="--accent:${mission.hue}">
-      <div class="num-orb">${n}</div>
+    return `<article class="card lesson-card mission quest-card" style="--accent:${mission.hue}">
+      <div class="mission-mark" aria-hidden="true"><i class="${mission.icon}"></i><span>${n}</span></div>
       <div>
         <p class="eyebrow">Миссия ${n} · 45 мин</p>
         <h2>${esc(mission.name)}</h2>
         <p class="fine">${esc(meta.teaser)}</p>
-        <p class="fine">${esc(starLine)} · ${esc(status)}</p>
+        <p class="stars-sm">${esc(starLine)} · ${esc(status)}</p>
       </div>
       <div class="status-col">${badge}<button class="btn btn-primary" type="button" data-act="open-lesson" data-n="${n}">${lesson && lesson.phase === 'done' ? 'Открыть' : 'В миссию'}</button></div>
     </article>`;
   }).join('');
   const points = xpTotal();
-  return `<p class="eyebrow">Игровое поле</p><h2 class="section-title">Здравствуйте, ${esc(state.student.firstName)}!</h2>
-    <article class="card hero-rank"><p class="eyebrow">${esc(rankTitle(points))}</p><p class="lead">${points} баллов из 400 · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p><p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p></article>${cards}`;
+  return `<p class="eyebrow">Игровое поле</p><h2 class="section-title">Привет, ${esc(state.student.firstName)}!</h2>
+    <article class="card hero-rank"><p class="eyebrow">${esc(rankTitle(points))}</p><p class="lead">${points} из 400 баллов · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p><p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p></article>${cards}`;
 }
 
 function honestyBlock(lesson) {
@@ -1843,7 +1847,8 @@ function graphEditor(hw) {
 }
 
 function renderTeacher() {
-  return `<p class="eyebrow">Для учителя</p><h2 class="section-title">Проверка кода</h2>
+  const back = state.student ? '' : '<button class="btn btn-ghost" type="button" data-act="close-teacher">К входу учеников</button>';
+  return `${back}<p class="eyebrow">Для учителя</p><h2 class="section-title">Журнал и проверка</h2>
     <article class="card"><p>Введите фамилию, имя и класс так, как на карточке ученика, и вставьте код или весь отчёт. Лаборатория проверит, что оценка, баллы, время, ошибки и уходы с экрана не переписаны.</p>
       <div class="stack">
         <label class="field">Фамилия<input id="teacher-last" autocomplete="off"></label>
@@ -1869,14 +1874,15 @@ function lessonHtml(lesson) {
   if (lesson.phase === 'notes') body = notesHtml(lesson);
   if (lesson.phase === 'blitz') body = blitzHtml(lesson);
   const mission = MISSIONS[lesson.n];
-  return `${stepsHtml(lesson.phase)}${scoreStrip(lesson)}${back}<p class="eyebrow" style="color:${mission.hue}">Миссия ${lesson.n} · 45 минут</p><h2 class="section-title">${esc(mission.name)}</h2>${body}`;
+  return `${stepsHtml(lesson.phase)}${scoreStrip(lesson)}${back}
+    <div class="quest-banner" style="--accent:${mission.hue}"><i class="${mission.icon}" aria-hidden="true"></i><div><p class="eyebrow">Миссия ${lesson.n} · 45 минут</p><h2 class="section-title">${esc(mission.name)}</h2></div></div>${body}`;
 }
 
 function goalHtml(lesson) {
   const meta = META[lesson.n];
   const mission = MISSIONS[lesson.n];
   const plan = mission.stations.map(([name, time]) => `<span class="station"><b>${esc(name)}</b><small>${esc(time)}</small></span>`).join('');
-  return `<article class="card mission" style="--accent:${mission.hue}"><p>${esc(mission.story)}</p><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul><h3>План на 45 минут</h3><div class="stations">${plan}</div>${rulesHtml()}
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><div class="quest-banner"><i class="${mission.icon}" aria-hidden="true"></i><p>${esc(mission.story)}</p></div><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul><h3>План на 45 минут</h3><div class="stations">${plan}</div>${rulesHtml()}
     <button class="btn btn-primary" type="button" data-act="start-lesson">Начать миссию</button>
     <p class="fine">После старта попытка закрепляется на этом устройстве. Результат уйдёт учителю сам.</p></article>`;
 }
@@ -1907,8 +1913,8 @@ function theoryHtml(lesson) {
   const note = card.solved
     ? `<p class="${card.points ? 'ok-text' : 'warn-text'}">${card.points ? 'Верно с первой попытки: 3 балла.' : 'Уже не первая попытка: балл за карточку 0, но ход мысли сохранён.'}</p><p>${esc(card.explain)}</p>`
     : `<p class="js-readgate fine">${locked ? `Прочитайте теорию: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
-  const hue = MISSIONS[lesson.n].hue;
-  return `<article class="card no-cheat mission" style="--accent:${hue}"><p class="pill">Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3>${card.body}${note}${options}${next}</article>`;
+  const mission = MISSIONS[lesson.n];
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><p class="pill"><i class="${mission.icon}" aria-hidden="true"></i> Теория ${lesson.theory.index + 1} / 5</p><h3>${esc(card.title)}</h3>${card.body}${note}${options}${next}</article>`;
 }
 
 function trainerHtml(lesson) {
@@ -2121,15 +2127,24 @@ function render(options) {
   options = options || {};
   const auth = $('auth');
   const shell = $('shell');
-  if (!state.student) {
+  const teacherDoor = !state.student && state.teacherDoor;
+  if (!state.student && !teacherDoor) {
     auth.classList.remove('is-hidden');
     shell.classList.add('is-hidden');
     return;
   }
+  if (teacherDoor && currentView() !== 'teacher') {
+    location.hash = 'teacher';
+    return;
+  }
   auth.classList.add('is-hidden');
   shell.classList.remove('is-hidden');
-  readHwFromDom();
-  $('student-chip').textContent = `${state.student.lastName} ${state.student.firstName} · ${state.student.className}`;
+  const tabbar = document.querySelector('.tabbar');
+  if (tabbar) tabbar.classList.toggle('is-hidden', teacherDoor);
+  if (state.student) readHwFromDom();
+  $('student-chip').textContent = state.student
+    ? `${state.student.lastName} ${state.student.firstName} · ${state.student.className}`
+    : 'Учитель';
   const notice = $('notice');
   if (state.notice) {
     notice.classList.remove('is-hidden');
@@ -2437,6 +2452,7 @@ function handleAuth(event) {
     salt: hashString(String(Date.now()) + ':' + Math.random()).toString(16),
     createdAt: Date.now()
   };
+  state.teacherDoor = false;
   state.groupId = (document.querySelector('input[name="signupGroup"]:checked') || {}).value || '1';
   state.roomCode = roomFromClass(className);
   state.hw = emptyHw();
@@ -2617,6 +2633,20 @@ function actConfirm(name) {
 }
 
 function handleAct(act, btn) {
+  if (act === 'open-teacher') {
+    state.teacherDoor = true;
+    save();
+    if (location.hash !== '#teacher') location.hash = 'teacher';
+    else render({ toTop: true });
+    return;
+  }
+  if (act === 'close-teacher') {
+    state.teacherDoor = false;
+    save();
+    location.hash = 'lessons';
+    render({ toTop: true });
+    return;
+  }
   if (act === 'nav') {
     location.hash = btn.dataset.go;
     return;
@@ -3157,7 +3187,8 @@ function boot() {
     blitzTick();
     if (accumulateTime() && Date.now() - lastPersist > 1000) save();
   }, 250);
-  if (!location.hash) location.hash = 'lessons';
+  if (!state.student && location.hash === '#teacher') state.teacherDoor = true;
+  if (!location.hash) location.hash = state.teacherDoor ? 'teacher' : 'lessons';
   render({ toTop: true });
   if (state && state.student) publishProgress();
   const opened = currentLessonNumber();
