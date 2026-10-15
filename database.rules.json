@@ -32,7 +32,7 @@
           "$groupId": {
             ".read": "auth != null && (root.child('users').child(auth.uid).child('groupId').val() == $groupId || root.child('classes').child($classId).child('masters').child(auth.uid).exists() || root.child('classes').child($classId).child('teachers').child(auth.uid).child('groups').child($groupId).val() == true)",
             "$sid": {
-              ".write": "auth != null && auth.uid == newData.child('uid').val() && newData.child('groupId').val() == $groupId && (!data.exists() || data.child('uid').val() == auth.uid)"
+              ".write": "auth != null && ((newData.exists() && auth.uid == newData.child('uid').val() && newData.child('groupId').val() == $groupId && (!data.exists() || data.child('uid').val() == auth.uid)) || (!newData.exists() && data.child('uid').val() == auth.uid))"
             }
           }
         },
@@ -40,7 +40,7 @@
           "$groupId": {
             ".read": "auth != null && (root.child('classes').child($classId).child('masters').child(auth.uid).exists() || root.child('classes').child($classId).child('teachers').child(auth.uid).child('groups').child($groupId).val() == true)",
             "$sid": {
-              ".write": "auth != null && auth.uid == newData.child('uid').val() && newData.child('groupId').val() == $groupId && (!data.exists() || data.child('uid').val() == auth.uid)"
+              ".write": "auth != null && ((newData.exists() && auth.uid == newData.child('uid').val() && newData.child('groupId').val() == $groupId && (!data.exists() || data.child('uid').val() == auth.uid)) || (!newData.exists() && data.child('uid').val() == auth.uid))"
             }
           }
         }

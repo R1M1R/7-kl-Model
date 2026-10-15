@@ -457,9 +457,36 @@ function validRoom(value) {
 }
 
 function roomFromClass(value) {
-  const body = normRoom(value).replace(/^class-/, '');
-  if (body.length < 2) return '';
-  return 'class-' + body;
+  const raw = String(value || '').trim().replace(/^class-/i, '');
+  const normalized = normClass(raw);
+  if (!validClass(normalized)) return '';
+  return 'class-' + normRoom(normalized);
+}
+
+function cloudErrorText(error) {
+  const code = (error && error.code) || '';
+  const message = String((error && error.message) || '');
+  if (code === 'auth/unauthorized-domain' || /unauthorized-domain/i.test(message)) {
+    return 'Оценки сохранены на телефоне. Журнал с этого адреса сайта ещё не открыт.';
+  }
+  if (code === 'PERMISSION_DENIED' || /permission_denied/i.test(message)) {
+    return 'Оценки сохранены на телефоне. Журнал класса запись не принял.';
+  }
+  if (/уже записано/.test(message)) return message;
+  return 'Оценки сохранены на телефоне. В журнал класса они пока не ушли.';
+}
+
+function teacherErrorText(error) {
+  const code = (error && error.code) || '';
+  const message = String((error && error.message) || '');
+  if (code === 'auth/unauthorized-domain' || /unauthorized-domain/i.test(message)) {
+    return 'Вход с этого адреса закрыт. В Firebase откройте Authentication → Settings → Authorized domains и добавьте r1m1r.github.io.';
+  }
+  return message || 'Не удалось открыть журнал';
+}
+
+function teacherEmailSaved() {
+  try { return localStorage.getItem('digitallab7-teacher-email') || ''; } catch (error) { return ''; }
 }
 
 function mac(payload) {
@@ -1498,7 +1525,7 @@ function renderLessons() {
   }).join('');
   const points = xpTotal();
   return `<p class="eyebrow">Игровое поле</p><h2 class="section-title">Здравствуйте, ${esc(state.student.firstName)}!</h2>
-    <article class="card hero-rank"><p class="eyebrow">${esc(rankTitle(points))}</p><p class="lead">${points} баллов из 400 · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p><p class="fine">Баллы уходят учителю сами. Код класса вводить не нужно.</p></article>${cards}`;
+    <article class="card hero-rank"><p class="eyebrow">${esc(rankTitle(points))}</p><p class="lead">${points} баллов из 400 · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p><p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p></article>${cards}`;
 }
 
 function honestyBlock(lesson) {
@@ -1560,6 +1587,7 @@ function progressPayload() {
   return {
     roomId: normRoom(state.roomCode),
     groupId: state.groupId || '1',
+    previousGroup: state.sentGroup || '',
     studentId: cloudStudentId(),
     board: {
       lastName: state.student.lastName,
@@ -1581,11 +1609,27 @@ function progressPayload() {
   };
 }
 
-function publishProgress() {
+function publishProgress(options) {
+  const loud = !!(options && options.loud);
   if (!cloudOn() || !validRoom(state.roomCode)) return Promise.resolve();
   return LabCloud.publish(progressPayload()).then((result) => {
-    if (result && result.ok === false && result.reason) toast(result.reason);
-  }).catch((error) => toast(error.message || 'Не удалось отправить журнал'));
+    if (result && result.ok === false) {
+      state.cloudNote = result.reason || cloudErrorText();
+      if (loud) toast(state.cloudNote);
+    } else {
+      state.cloudNote = '';
+      state.sentGroup = state.groupId || '1';
+    }
+    save();
+    const note = document.querySelector('[data-cloud-note]');
+    if (note) note.textContent = state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.';
+  }).catch((error) => {
+    state.cloudNote = cloudErrorText(error);
+    save();
+    if (loud) toast(state.cloudNote);
+    const note = document.querySelector('[data-cloud-note]');
+    if (note) note.textContent = state.cloudNote;
+  });
 }
 
 function rankSection() {
@@ -1624,12 +1668,13 @@ function teacherJournalSection() {
     <p>Автор и ведущий: Усеинов Эмир Рустемович. Он видит все группы. Коллега после входа копирует свой код доступа, а вы открываете ей только нужные группы.</p>
     <p class="fine">Если вход пишет unauthorized-domain, в Firebase Authentication добавьте домен r1m1r.github.io.</p>
     <div class="stack">
-      <label class="field">Почта<input id="teacher-email" autocomplete="username"></label>
+      <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
       <button class="btn btn-primary" type="button" data-act="teacher-register">Создать вход ведущего</button>
       <button class="btn btn-ghost" type="button" data-act="colleague-register">Создать вход коллеги</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть журнал</button>
+      <p class="fine">После первого входа на этом телефоне пароль можно не вводить: достаточно класса и кнопки «Открыть журнал».</p>
       <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
       <label class="fine"><input type="checkbox" class="grant-group" value="1"> Группа 1</label>
       <label class="fine"><input type="checkbox" class="grant-group" value="2"> Группа 2</label>
@@ -2247,7 +2292,7 @@ function finishLesson(n) {
   lesson.finishedAt = Date.now();
   lesson.code = formatCode(state.student, lesson);
   save();
-  publishProgress();
+  publishProgress({ loud: true });
   if (currentLessonNumber() === n) render({ toTop: true });
 }
 
@@ -2605,7 +2650,7 @@ function handleAct(act, btn) {
     state.roomCode = roomFromClass(state.student.className);
     save();
     toast('Группа запомнена. Баллы уходят учителю сами.');
-    publishProgress();
+    publishProgress({ loud: true });
     render();
     return;
   }
@@ -2623,7 +2668,7 @@ function handleAct(act, btn) {
       if (node) node.innerHTML = `<p class="ok-text">Вход коллеги создан. Передайте ведущему код доступа: ${esc(access.uid)}</p>`;
     }).catch((error) => {
       const node = $('journal-out');
-      if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось создать вход коллеги')}</p>`;
+      if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
     });
     return;
   }
@@ -2641,7 +2686,7 @@ function handleAct(act, btn) {
       if (node) node.innerHTML = `<p class="ok-text">Вы ведущий. Код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
     }).catch((error) => {
       const node = $('journal-out');
-      if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось создать вход')}</p>`;
+      if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
     });
     return;
   }
@@ -2657,7 +2702,7 @@ function handleAct(act, btn) {
     LabCloud.grantTeacher(room, uid, groups).then(() => {
       out.innerHTML = `<p class="ok-text">Коллеге открыты группы ${esc(groups.join(', '))}.</p>`;
     }).catch((error) => {
-      out.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось выдать доступ')}</p>`;
+      out.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
     });
     return;
   }
@@ -2668,7 +2713,16 @@ function handleAct(act, btn) {
     const out = $('journal-out');
     if (!validRoom(room)) { out.innerHTML = '<p class="field-error">Напишите класс так же, как ученики: 7А.</p>'; return; }
     out.innerHTML = '<p class="fine">Открываю журнал…</p>';
-    LabCloud.teacherLogin(email, password).then(() => LabCloud.teacherJournal(room)).then((result) => {
+    const session = (email && password)
+      ? LabCloud.teacherLogin(email, password).then((user) => {
+        try { localStorage.setItem('digitallab7-teacher-email', email); } catch (error) { /* почта только для удобства на этом телефоне */ }
+        return user;
+      })
+      : LabCloud.currentTeacher().then((user) => {
+        if (!user) throw new Error('Первый раз на этом телефоне нужны почта и пароль.');
+        return user;
+      });
+    session.then(() => LabCloud.teacherJournal(room)).then((result) => {
       const node = $('journal-out');
       if (!node) return;
       if (result.access.role === 'none') {
@@ -2679,7 +2733,7 @@ function handleAct(act, btn) {
       node.innerHTML = `<p class="ok-text">${esc(role)}. Работ: ${result.rows.length}. Ваш код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
     }).catch((error) => {
       const node = $('journal-out');
-      if (node) node.innerHTML = `<p class="field-error">${esc(error.message || 'Не удалось открыть журнал')}</p>`;
+      if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
     });
     return;
   }
@@ -2716,9 +2770,9 @@ function handleAct(act, btn) {
         LabCloud.uploadPhoto(payload.roomId, payload.studentId, n, photo).then((url) => {
           state.hw[n].photoUrl = url;
           save();
-          return publishProgress();
+          return publishProgress({ loud: true });
         }).catch((error) => toast(error.message || 'Фото не отправилось, текст ДЗ сохранён'));
-      } else publishProgress();
+      } else publishProgress({ loud: true });
     } else {
       save();
       render();
@@ -3082,7 +3136,7 @@ if (typeof document !== 'undefined') {
 }
 
 const ModelLab = {
-  hashString, mac, codePayload, formatCode, verifyCode, normClass, prettyName, normPerson,
+  hashString, mac, codePayload, formatCode, verifyCode, normClass, roomFromClass, prettyName, normPerson,
   gradeFrom, focusPenalty, recompute, featureErrors, buildAdj, allSimplePaths, shortestVia,
   isMeaningful, hasFormula, hasBranch, buildLesson, attachBlitz, validateHomework, emptyHw, sign, canon
 };

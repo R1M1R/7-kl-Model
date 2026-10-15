@@ -57,12 +57,34 @@
     return firebase.database().ref();
   }
 
+  async function currentTeacher() {
+    const ok = await ensure();
+    if (!ok) return null;
+    const user = firebase.auth().currentUser;
+    if (!user || user.isAnonymous) return null;
+    return user;
+  }
+
   async function publish(payload) {
     const user = await studentAuth();
     if (!user) return { ok: false, reason: 'Журнал класса ещё не подключён' };
     const room = payload.roomId;
     const groupId = String(payload.groupId || '1');
     const id = payload.studentId;
+    await root().child(`users/${user.uid}`).update({ classId: room, groupId, role: 'student' });
+    const previousGroup = payload.previousGroup ? String(payload.previousGroup) : '';
+    if (previousGroup && previousGroup !== groupId) {
+      const oldBoard = root().child(`classes/${room}/boardByGroup/${previousGroup}/${id}`);
+      try {
+        const prev = await oldBoard.get();
+        if (prev.exists() && prev.val().uid === user.uid) {
+          await oldBoard.remove();
+          await root().child(`classes/${room}/workByGroup/${previousGroup}/${id}`).remove();
+        }
+      } catch (error) {
+        // Старая группа останется, пока правила не разрешат удаление. Новая запись всё равно уйдёт.
+      }
+    }
     const existing = await root().child(`classes/${room}/boardByGroup/${groupId}/${id}`).get();
     if (existing.exists() && existing.val().uid && existing.val().uid !== user.uid) {
       return { ok: false, reason: 'Это имя уже записано с другого телефона.' };
@@ -213,6 +235,7 @@
   window.LabCloud = {
     enabled,
     publish,
+    currentTeacher,
     watchBoard,
     teacherLogin,
     claimMaster,
