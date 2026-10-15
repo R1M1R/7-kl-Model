@@ -236,7 +236,7 @@ img, svg { max-width: 100%; }
   border: 1px solid var(--line); color: var(--muted); font-size: 0.68rem; font-weight: 800; text-align: center;
 }
 .step b { font-size: 0.9rem; line-height: 1; }
-.step small { line-height: 1.1; }
+.step small { line-height: 1.1; font-size: 0.62rem; }
 .step.is-now { color: #041018; background: var(--accent, var(--cyan)); border-color: transparent; }
 .step.is-done { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
 .hud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
@@ -254,6 +254,14 @@ img, svg { max-width: 100%; }
   color: var(--accent, var(--cyan));
 }
 .theory-copy p { margin: 0 0 8px; }
+.key-idea { margin: 0 0 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent, var(--cyan)) 16%, #0d1a30); }
+.key-idea span { display: block; margin-bottom: 4px; color: var(--accent, var(--cyan)); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.key-idea p { margin: 0; font-weight: 800; }
+.why { margin: 8px 0; padding: 10px 12px; border-radius: 14px; }
+.why b { display: block; margin-bottom: 4px; }
+.why p { margin: 0; }
+.why.is-ok { background: rgba(62, 224, 160, 0.12); }
+.why.is-no { background: rgba(255, 193, 77, 0.12); }
 .story-lead { font-size: 1.08rem; font-weight: 800; margin-top: 0; }
 .dots { display: flex; gap: 8px; margin: 0 0 10px; }
 .dots i { width: 14px; height: 14px; border-radius: 99px; background: #243049; }

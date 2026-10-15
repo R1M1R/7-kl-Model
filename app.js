@@ -1465,7 +1465,7 @@ function scoreStrip(lesson) {
 
 function stepsHtml(phase, hue) {
   const order = ['goal', 'theory', 'trainer', 'notes', 'blitz', 'done'];
-  const labels = ['Бриф', 'Теория', 'Дело', 'Дневник', 'Блиц', 'Итог'];
+  const labels = ['Старт', 'Теория', 'Практика', 'Дневник', 'Блиц', 'Итог'];
   const current = phase === 'done' ? 5 : Math.max(0, order.indexOf(phase));
   const color = hue ? ` style="--accent:${hue}"` : '';
   return `<div class="steps"${color}>${labels.map((label, index) => `<span class="step ${index < current ? 'is-done' : ''} ${index === current ? 'is-now' : ''}"><b>${index + 1}</b><small>${esc(label)}</small></span>`).join('')}</div>`;
@@ -1908,6 +1908,20 @@ function notesHtml(lesson) {
   return `<article class="card mission quest-card" style="--accent:${mission.hue}"><h3>Дневник миссии</h3><p>Это не контрольная: баллы за дневник не ставятся. Напишите три ответа своими словами, и откроется блиц.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
 }
 
+function theoryParts(html) {
+  const parts = [];
+  const pattern = /<p>([\s\S]*?)<\/p>/gi;
+  let match = pattern.exec(html);
+  while (match) {
+    parts.push(match[1]);
+    match = pattern.exec(html);
+  }
+  return {
+    lead: parts[0] || '',
+    rest: parts.slice(1).map((part) => `<p>${part}</p>`).join('')
+  };
+}
+
 function theoryHtml(lesson) {
   const card = lesson.theory.cards[lesson.theory.index];
   const left = Math.max(0, READ_MS - (Date.now() - (lesson.theory.cardStartedAt || Date.now())));
@@ -1926,11 +1940,12 @@ function theoryHtml(lesson) {
       : '<button class="btn btn-primary" type="button" data-act="go-trainer">К тренажёру</button>')
     : '';
   const note = card.solved
-    ? `<p class="${card.points ? 'ok-text' : 'warn-text'}">${card.points ? 'Верно с первой попытки: 3 балла.' : 'Уже не первая попытка: балл за карточку 0, но ход мысли сохранён.'}</p><p>${esc(card.explain)}</p>`
-    : `<p class="js-readgate fine">${locked ? `Прочитайте теорию: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
+    ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
+    : `<p class="js-readgate fine">${locked ? `Сначала прочитайте мысль: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
   const mission = MISSIONS[lesson.n];
+  const parts = theoryParts(card.body);
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="theory-copy">${card.body}</div>${note}${options}${next}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div>${note}${options}${next}</article>`;
 }
 
 function trainerHtml(lesson) {
