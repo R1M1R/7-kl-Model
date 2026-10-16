@@ -1726,16 +1726,28 @@ function lessonByNumber(row, n) {
   return (row.lessons || []).find((lesson) => lesson.n === n) || null;
 }
 
+function missingRows(rows, n) {
+  return (rows || []).filter((row) => {
+    const lesson = lessonByNumber(row, n);
+    return !lesson || !lesson.done;
+  });
+}
+
 function gapLine(rows) {
   if (!rows || !rows.length) return '';
   const parts = [1, 2, 3, 4].map((n) => {
-    const missing = rows.filter((row) => {
-      const lesson = lessonByNumber(row, n);
-      return !lesson || !lesson.done;
-    }).length;
-    return missing ? `урок ${n} не сдан у ${missing}` : '';
+    const missing = missingRows(rows, n);
+    if (!missing.length) return '';
+    const names = missing.map((row) => `${row.lastName} ${row.firstName}`).join(', ');
+    return `Урок ${n} не сдали (${missing.length}): ${names}`;
   }).filter(Boolean);
-  return parts.length ? 'Среди приславших: ' + parts.join(', ') + '.' : 'Среди приславших все четыре урока сданы.';
+  return parts.length ? parts.join('\n') : 'Среди приславших все четыре урока сданы.';
+}
+
+function gapBlocks(rows) {
+  const text = gapLine(rows);
+  if (!text) return '';
+  return text.split('\n').map((line) => `<p class="fine">${esc(line)}</p>`).join('');
 }
 
 function gradeMark(lesson) {
@@ -1773,7 +1785,7 @@ function journalCards(rows) {
     return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, группа ${esc(row.groupId || '–')}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
   }).join('');
   return `<p class="fine">Учеников ${sorted.length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
-    <p class="fine">${esc(gapLine(sorted))}</p>
+    ${gapBlocks(sorted)}
     <div class="table-wrap"><table class="rank journal-board"><tr><th>Ученик</th><th>Гр.</th><th>1</th><th>2</th><th>3</th><th>4</th><th>Баллы</th><th>ДЗ</th></tr>${body}</table></div>
     <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
 }
@@ -1783,7 +1795,7 @@ let lastJournalText = '';
 function journalTsv(title, rows) {
   const sorted = (rows || []).slice().sort((a, b) => String(a.groupId || '').localeCompare(String(b.groupId || ''))
     || String(a.lastName || '').localeCompare(String(b.lastName || ''), 'ru'));
-  const lines = [title, gapLine(sorted), 'Фамилия\tИмя\tГруппа\tУрок1\tУрок2\tУрок3\tУрок4\tБаллы\tДЗ'];
+  const lines = [title, 'Фамилия\tИмя\tГруппа\tУрок1\tУрок2\tУрок3\tУрок4\tБаллы\tДЗ'];
   sorted.forEach((row) => {
     const grades = [1, 2, 3, 4].map((n) => {
       const lesson = lessonByNumber(row, n);
@@ -1794,6 +1806,8 @@ function journalTsv(title, rows) {
     lines.push([row.lastName, row.firstName, row.groupId || '', grades.join('\t'), points, hw + '/4'].join('\t'));
   });
   if (!sorted.length) lines.push('Пока нет работ');
+  const gaps = gapLine(sorted);
+  if (gaps) lines.push('', gaps);
   return lines.join('\n');
 }
 
