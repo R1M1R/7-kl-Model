@@ -459,6 +459,8 @@ img, svg { max-width: 100%; }
 .table-wrap { overflow-x: auto; margin: 8px 0 12px; -webkit-overflow-scrolling: touch; }
 table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .matrix-wide { min-width: 520px; }
+.matrix-fit { width: 100%; }
+.matrix-fit th, .matrix-fit td { padding: 8px 2px; }
 .matrix th, .matrix td { border: 1px solid var(--line); padding: 4px; text-align: center; }
 .matrix .bare-input { min-height: 44px; padding: 8px 4px; font-size: 0.78rem; }
 .matrix th { background: #0d1a30; }

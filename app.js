@@ -2403,6 +2403,18 @@ function trainer3(lesson) {
   return `<article class="card"><h3>Трассировка сдана</h3>${traceCheck}<p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
+function distanceTable(graph) {
+  const short = { A: 'Дом', B: 'Школа', C: 'Парк', D: 'Библ.', E: 'Стадион' };
+  const ids = ['A', 'B', 'C', 'D', 'E'];
+  const head = ids.map((id) => `<th>${short[id]}</th>`).join('');
+  const rows = ids.map((row) => `<tr><th>${short[row]}</th>${ids.map((col) => {
+    if (row === col) return '<td>·</td>';
+    const weight = edgeWeight(graph, row, col);
+    return `<td>${weight == null ? '—' : weight}</td>`;
+  }).join('')}</tr>`).join('');
+  return `<p class="fine">Километры спрятаны в таблице. Строка и столбец — пункты. Впиши число у той же дороги.</p><div class="table-wrap"><table class="matrix matrix-fit"><tr><th>км</th>${head}</tr>${rows}</table></div>`;
+}
+
 function graphTable(graph) {
   const ids = ['A', 'B', 'C', 'D', 'E'];
   const head = ids.map((id) => `<th>${esc(graph.names[id])}</th>`).join('');
@@ -2477,11 +2489,10 @@ function routeHint(graph) {
 
 function trainer4(lesson) {
   const graph = lesson.trainer.graph;
-  const table = graphTable(graph);
   if (lesson.trainer.stage === 'edges') {
     const rows = graph.edges.map((edge) => `<label class="edge-row"><span>${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}</span><input class="bare-input" inputmode="numeric" data-edge="${edge.id}" value="${esc(graph.draft[edge.id] || '')}" placeholder="км"></label>`).join('');
     const filledRoads = graph.edges.filter((edge) => /^\d+$/.test(String(graph.draft[edge.id] || '').trim())).length;
-    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${table}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
+    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${distanceTable(graph)}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
     const lines = graph.edges.map((edge) => {
