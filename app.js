@@ -1795,16 +1795,16 @@ function journalCards(rows) {
   let lastGroup = null;
   const body = sorted.map((row) => {
     const group = String(row.groupId || '–');
-    const band = group === lastGroup ? '' : `<tr class="group-row"><td colspan="8">Группа ${esc(group)}</td></tr>`;
+    const band = group === lastGroup ? '' : `<h3 class="journal-band">Группа ${esc(group)}</h3>`;
     lastGroup = group;
     const hasTwo = [1, 2, 3, 4].some((n) => {
       const lesson = lessonByNumber(row, n);
       return lesson && lesson.done && Number(lesson.grade) === 2;
     });
-    const marks = [1, 2, 3, 4].map((n) => `<td>${gradeMark(lessonByNumber(row, n))}</td>`).join('');
+    const marks = [1, 2, 3, 4].map((n) => `<span><small>${n}</small>${gradeMark(lessonByNumber(row, n))}</span>`).join('');
     const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
     const hw = (row.homework || []).filter((item) => item.done).length;
-    return `${band}<tr class="${hasTwo ? 'is-weak' : ''}"><td>${esc(row.lastName)} ${esc(row.firstName)}</td><td>${esc(group)}</td>${marks}<td>${points}</td><td>${hw}/4</td></tr>`;
+    return `${band}<article class="journal-person ${hasTwo ? 'is-weak' : ''}"><div><b>${esc(row.lastName)} ${esc(row.firstName)}</b><span>группа ${esc(group)}</span></div><div class="journal-marks">${marks}</div><p>${points} баллов · ДЗ ${hw}/4</p></article>`;
   }).join('');
   const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
@@ -1822,7 +1822,7 @@ function journalCards(rows) {
   return `<p class="fine">Учеников ${sorted.length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
     ${gapBlocks(sorted)}
     ${weakLine(sorted) ? `<p class="warn-text">${esc(weakLine(sorted))}</p>` : ''}
-    <div class="table-wrap"><table class="rank journal-board"><tr><th>Ученик</th><th>Гр.</th><th>1</th><th>2</th><th>3</th><th>4</th><th>Баллы</th><th>ДЗ</th></tr>${body}</table></div>
+    <div class="journal-list">${body}</div>
     <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
 }
 

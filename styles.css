@@ -582,11 +582,18 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .rank { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
 .rank th, .rank td { padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .rank tr.is-me td { background: rgba(61, 224, 255, 0.14); font-weight: 800; }
-.journal-board th, .journal-board td { text-align: center; }
-.journal-board td:first-child, .journal-board th:first-child { text-align: left; white-space: nowrap; }
-.journal-board .badge { min-width: 28px; min-height: 24px; font-size: 0.85rem; }
-.journal-board tr.group-row td { text-align: left; font-weight: 800; background: #0d1a30; }
-.journal-board tr.is-weak td:first-child { color: var(--bad); }
+.journal-band { margin: 12px 0 6px; }
+.journal-person {
+  display: grid; gap: 6px; margin: 0 0 8px; padding: 10px 12px;
+  border-radius: 16px; background: #0d1a30; border: 1px solid var(--line);
+}
+.journal-person > div:first-child { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.journal-person > div:first-child span, .journal-person > p { color: var(--muted); margin: 0; font-size: 0.86rem; }
+.journal-marks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.journal-marks span { display: grid; justify-items: center; gap: 2px; }
+.journal-marks small { color: var(--muted); font-weight: 800; }
+.journal-person.is-weak b { color: var(--bad); }
+.journal-person .badge { min-width: 28px; min-height: 24px; font-size: 0.85rem; }
 .hw-photo { width: 100%; max-height: 240px; object-fit: contain; border-radius: 12px; background: #0b1424; }
 .hw-lock { opacity: 0.95; }
 .readout { white-space: pre-wrap; background: #0b1424; border-radius: 12px; padding: 10px; }
