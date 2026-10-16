@@ -586,6 +586,7 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .journal-board td:first-child, .journal-board th:first-child { text-align: left; white-space: nowrap; }
 .journal-board .badge { min-width: 28px; min-height: 24px; font-size: 0.85rem; }
 .journal-board tr.group-row td { text-align: left; font-weight: 800; background: #0d1a30; }
+.journal-board tr.is-weak td:first-child { color: var(--bad); }
 .hw-photo { width: 100%; max-height: 240px; object-fit: contain; border-radius: 12px; background: #0b1424; }
 .hw-lock { opacity: 0.95; }
 .readout { white-space: pre-wrap; background: #0b1424; border-radius: 12px; padding: 10px; }
