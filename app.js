@@ -1444,13 +1444,13 @@ function paintClocks() {
   const text = clockText();
   document.querySelectorAll('[data-clock]').forEach((node) => { node.textContent = text; });
   if (!state.student) return;
-  const wm = `${state.student.lastName} ${state.student.firstName} · ${state.student.className} · ${text}`;
+  const wm = `${state.student.lastName} ${state.student.firstName} · ${state.student.className} · группа ${state.groupId === '2' ? '2' : '1'} · ${text}`;
   document.querySelectorAll('[data-wm-text]').forEach((node) => { node.textContent = wm; });
 }
 
 function wmLayer() {
   if (!state.student) return '';
-  const text = `${state.student.lastName} ${state.student.firstName} · ${state.student.className} · ${clockText()}`;
+  const text = `${state.student.lastName} ${state.student.firstName} · ${state.student.className} · группа ${state.groupId === '2' ? '2' : '1'} · ${clockText()}`;
   return `<div class="wm" aria-hidden="true">${Array.from({ length: 14 }, () => `<span data-wm-text>${esc(text)}</span>`).join('')}</div>`;
 }
 
@@ -1898,7 +1898,7 @@ function renderGrades() {
     </div></article>`;
   }).join('');
   return `<p class="eyebrow">Табель</p><h2 class="section-title">${esc(state.student.lastName)} ${esc(state.student.firstName)}</h2>
-    <p class="lead">Класс ${esc(state.student.className)} · <span data-clock>${esc(clockText())}</span></p>
+    <p class="lead">Класс ${esc(state.student.className)} · группа ${state.groupId === '2' ? '2' : '1'} · <span data-clock>${esc(clockText())}</span></p>
     ${cards}
     <button class="btn btn-primary" type="button" data-act="copy-report">Скопировать защищённый отчёт для учителя</button>
     <button class="btn btn-ghost" type="button" data-act="download-report">Скачать сертификат/отчёт (.html)</button>
@@ -2557,6 +2557,7 @@ function reportPlain() {
     'ЦИФРОЛАБ 7 · ОТЧЁТ',
     `Ученик: ${state.student.lastName} ${state.student.firstName}`,
     `Класс: ${state.student.className}`,
+    `Группа: ${state.groupId === '2' ? '2' : '1'}`,
     `Сформирован: ${clockText()}`,
     ''
   ];
@@ -2589,7 +2590,7 @@ function reportHtml() {
   const hw = [1, 2, 3, 4].map((n) => `<h2>ДЗ ${n}. ${esc(META[n].hw)}</h2><pre>${esc(state.hw[n].done ? hwPlain(n, state.hw[n]) : 'не сдано')}</pre>`).join('');
   return `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Отчёт ${esc(student.lastName)}</title>
     <style>body{font-family:Segoe UI,sans-serif;background:#0d1526;color:#e8f0fb;padding:24px}table{border-collapse:collapse;width:100%}td{border:1px solid #345;padding:8px}h1{font-size:28px}pre{white-space:pre-wrap}</style></head>
-    <body><p>${esc(student.lastName)} ${esc(student.firstName)} · ${esc(student.className)} · ${esc(clockText())}</p>
+    <body><p>${esc(student.lastName)} ${esc(student.firstName)} · ${esc(student.className)} · группа ${state.groupId === '2' ? '2' : '1'} · ${esc(clockText())}</p>
     <h1>Цифролаб 7. Отчёт</h1><table>${rows}</table>${hw}</body></html>`;
 }
 

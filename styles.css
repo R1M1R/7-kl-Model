@@ -157,8 +157,8 @@ img, svg { max-width: 100%; }
   border-bottom: 1px solid var(--line);
 }
 .top-title { margin: 0; font-size: 1.15rem; }
-.top-meta { text-align: right; }
-.student-chip { font-weight: 800; font-size: 0.92rem; }
+.top-meta { text-align: right; max-width: 62%; }
+.student-chip { font-weight: 800; font-size: 0.92rem; white-space: normal; }
 .clock { display: block; color: var(--cyan); font-variant-numeric: tabular-nums; font-weight: 800; }
 
 .notice {
