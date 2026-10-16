@@ -7,6 +7,8 @@ const STORAGE_KEY = 'digitallab7-model-journal-v1';
 const SECRET = ['M7', 'FGOS', 'LAB', '2026', 'MODEL', 'SALT', 'K9'].join('-');
 const BLITZ_MS = 45000;
 const READ_MS = 7000;
+const LAB_NEED = 8;
+const LAB_MS = 30 * 60 * 1000;
 const AUTHOR = 'Усеинов Эмир Рустемович';
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -1469,7 +1471,8 @@ function scoreStrip(lesson) {
 function stepsHtml(phase, hue) {
   const order = ['goal', 'theory', 'trainer', 'notes', 'blitz', 'done'];
   const labels = ['Старт', 'Теория', 'Практика', 'Дневник', 'Блиц', 'Итог'];
-  const current = phase === 'done' ? 5 : Math.max(0, order.indexOf(phase));
+  const current = phase === 'done' ? 5 : phase === 'lab' ? 2 : Math.max(0, order.indexOf(phase));
+  if (phase === 'lab') labels[2] = 'Закрепление';
   const color = hue ? ` style="--accent:${hue}"` : '';
   return `<div class="steps"${color}>${labels.map((label, index) => `<span class="step ${index < current ? 'is-done' : ''} ${index === current ? 'is-now' : ''}"><b>${index + 1}</b><small>${esc(label)}</small></span>`).join('')}</div>`;
 }
@@ -2109,6 +2112,7 @@ function lessonHtml(lesson) {
   if (lesson.phase === 'goal') body = goalHtml(lesson);
   if (lesson.phase === 'theory') body = theoryHtml(lesson);
   if (lesson.phase === 'trainer') body = trainerHtml(lesson);
+  if (lesson.phase === 'lab') body = labHtml(lesson);
   if (lesson.phase === 'notes') body = notesHtml(lesson);
   if (lesson.phase === 'blitz') body = blitzHtml(lesson);
   return `${stepsHtml(lesson.phase, mission.hue)}${scoreStrip(lesson)}${back}
@@ -2231,7 +2235,7 @@ function classifyHtml(trainer) {
     ? wrong.map((item) => `<p class="warn-text">${esc(item.text)} — верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}.</p>`).join('')
     : '<p class="ok-text">Все карточки в своих стопках.</p>');
   const action = locked
-    ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
+    ? '<button class="btn btn-primary" type="button" data-act="go-notes">К закреплению</button>'
     : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать стопки</button>';
   const count = locked ? `Ошибок: ${wrong.length}` : `Разобрано ${sorted} из ${items.length}`;
   const ready = locked ? wrong.length === 0 : sorted === items.length;
@@ -2340,7 +2344,7 @@ function trainer2(lesson) {
   }
   const extraSame = scenario.extraGiven === scenario.extraAnswer;
   const extraCheck = scenario.extraGiven == null ? '' : `<p class="${extraSame ? 'ok-text' : 'warn-text'}">Ваша величина: ${scenario.extraGiven}. Верно: ${scenario.extraAnswer}.</p>`;
-  return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p>${extraCheck}<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
+  return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p>${extraCheck}<button class="btn btn-primary" type="button" data-act="go-notes">К закреплению</button></article>`;
 }
 
 function shapeHtml(shape) {
@@ -2426,7 +2430,7 @@ function trainer3(lesson) {
   const traceCheck = algo.traceGivenText
     ? `<p class="${algo.traceOk ? 'ok-text' : 'warn-text'}">Вы ответили: ${esc(algo.traceGivenText)}. Верно: ${esc(algo.traceRightText)}.</p>`
     : '';
-  return `<article class="card"><h3>Трассировка сдана</h3>${traceCheck}<p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
+  return `<article class="card"><h3>Трассировка сдана</h3>${traceCheck}<p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К закреплению</button></article>`;
 }
 
 function distanceTable(graph) {
@@ -2541,7 +2545,7 @@ function trainer4(lesson) {
   const wrote = graph.pathGiven;
   const same = best && wrote === best.len;
   const compare = best ? `<p class="${same ? 'ok-text' : 'warn-text'}">Ваш маршрут: ${wrote == null ? '—' : wrote} км. Кратчайший: ${best.len} км — ${esc(best.path.map((id) => graph.names[id]).join(' → '))}.</p>` : '';
-  return `<article class="card"><h3>Маршрут проверен</h3>${compare}<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
+  return `<article class="card"><h3>Маршрут проверен</h3>${compare}<button class="btn btn-primary" type="button" data-act="go-notes">К закреплению</button></article>`;
 }
 
 function blitzHtml(lesson) {
@@ -2602,6 +2606,141 @@ function toyHtml(lesson, practice) {
   const note = pick === 'short' ? 'Ура, сумма меньше — курьер первый!' : (pick ? 'Этот длиннее. Запусти другого.' : 'Кто добежит быстрее?');
   const runner = `<div class="toy-run"><span class="toy-runner ${pick ? 'is-go' : ''} ${pick === 'short' ? 'is-fast' : ''}">🏃</span></div>`;
   return `<article class="card toy"><h3>Запусти курьера</h3><p class="fine">${practice ? 'Сначала пример. Здесь баллы не снимают.' : 'Можно жать сколько угодно. Баллы не меняются.'}</p>${runner}<div class="toy-roads">${buttons}</div><p class="play-count ${pick === 'short' ? 'is-ready' : ''}">${note}</p>${next}</article>`;
+}
+
+function labTask1(rng) {
+  const kind = Math.floor(rng() * 3);
+  if (kind === 0) {
+    const pairs = [
+      ['Чертёж дома', 'Сам дом'],
+      ['Глобус', 'Планета Земля'],
+      ['Расписание уроков', 'Живой урок'],
+      ['Игрушечный мост', 'Настоящий мост']
+    ];
+    const pair = pairs[Math.floor(rng() * pairs.length)];
+    const options = rng() < 0.5 ? [pair[0], pair[1]] : [pair[1], pair[0]];
+    return { kind: 'choice', text: 'Где модель, а не оригинал?', options, correctIndex: options.indexOf(pair[0]) };
+  }
+  if (kind === 1) {
+    const cards = [
+      { goal: 'посчитать бензин', good: 'Расход на 100 км', bad: ['Цвет салона', 'Название радио', 'Рисунок на коврике'] },
+      { goal: 'эвакуация школы', good: 'Ширина выходов', bad: ['Цвет штор', 'Марка доски', 'Рисунок на портфеле'] },
+      { goal: 'заряд телефона', good: 'Ёмкость аккумулятора', bad: ['Цвет чехла', 'Мелодия звонка', 'Обои'] }
+    ];
+    const card = cards[Math.floor(rng() * cards.length)];
+    const options = shuffle(rng, [card.good].concat(card.bad));
+    return { kind: 'choice', text: 'Цель: ' + card.goal + '. Что здесь существенно?', options, correctIndex: options.indexOf(card.good) };
+  }
+  const items = [
+    ['Глобус', 0],
+    ['Формула пути', 1],
+    ['Макет моста', 0],
+    ['Таблица расстояний', 1]
+  ];
+  const item = items[Math.floor(rng() * items.length)];
+  return { kind: 'choice', text: item[0] + ' — какая это модель?', options: ['Материальная', 'Информационная'], correctIndex: item[1] };
+}
+
+function labTask2(rng) {
+  if (rng() < 0.5) {
+    const speed = (2 + Math.floor(rng() * 8)) * 5;
+    const time = 2 + Math.floor(rng() * 5);
+    return { kind: 'number', text: 'Велосипед едет v = ' + speed + ' км/ч, t = ' + time + ' ч. S = v·t. Какой путь в км?', answer: speed * time };
+  }
+  const start = (2 + Math.floor(rng() * 6)) * 10;
+  const flow = (1 + Math.floor(rng() * 6)) * 5;
+  const time = 2 + Math.floor(rng() * 6);
+  return { kind: 'number', text: 'В баке было ' + start + ' л. Доливают ' + flow + ' л/мин, прошло ' + time + ' мин. V = V₀ + q·t. Сколько литров?', answer: start + flow * time };
+}
+
+function labTask3(rng) {
+  const kind = Math.floor(rng() * 3);
+  if (kind === 0) {
+    const shapes = [
+      ['Условие «да или нет» записывают в…', 'Ромб', ['Овал', 'Прямоугольник', 'Параллелограмм']],
+      ['Начало алгоритма записывают в…', 'Овал', ['Ромб', 'Прямоугольник', 'Параллелограмм']],
+      ['Ввод числа записывают в…', 'Параллелограмм', ['Ромб', 'Овал', 'Прямоугольник']]
+    ];
+    const card = shapes[Math.floor(rng() * shapes.length)];
+    const options = shuffle(rng, [card[1]].concat(card[2]));
+    return { kind: 'choice', text: card[0], options, correctIndex: options.indexOf(card[1]) };
+  }
+  if (kind === 1) {
+    const limit = 20 + Math.floor(rng() * 6);
+    const sample = limit + (rng() < 0.5 ? -2 : 2);
+    const cool = sample > limit;
+    const options = shuffle(rng, ['Включить охлаждение', 'Выключить охлаждение', 'Ничего не проверять']);
+    const correct = cool ? 'Включить охлаждение' : 'Выключить охлаждение';
+    return { kind: 'choice', text: 'Если T > ' + limit + ', включают охлаждение, иначе выключают. Подали T = ' + sample + '. Что будет?', options, correctIndex: options.indexOf(correct) };
+  }
+  const options = shuffle(rng, ['Пока есть проходы, пропускай следующего', 'Вывести слово «готово»', 'Начало алгоритма']);
+  return { kind: 'choice', text: 'Где здесь цикл?', options, correctIndex: options.indexOf('Пока есть проходы, пропускай следующего') };
+}
+
+function labTask4(rng) {
+  let first = 3 + Math.floor(rng() * 6);
+  let second = 3 + Math.floor(rng() * 6);
+  let third = 2 + Math.floor(rng() * 5);
+  let fourth = 2 + Math.floor(rng() * 5);
+  let fifth = 2 + Math.floor(rng() * 5);
+  let sumA = first + second;
+  let sumB = third + fourth + fifth;
+  if (sumA === sumB) fifth += 1;
+  sumB = third + fourth + fifth;
+  const aShort = sumA < sumB;
+  return {
+    kind: 'choice',
+    text: 'Путь А: ' + first + ' км и ' + second + ' км. Путь Б: ' + third + ' + ' + fourth + ' + ' + fifth + ' км. Какой короче?',
+    options: ['Путь А', 'Путь Б'],
+    correctIndex: aShort ? 0 : 1
+  };
+}
+
+function makeLabTask(lesson) {
+  const rng = mulberry32((lesson.seed + lesson.lab.index * 101 + lesson.n * 17) >>> 0);
+  if (lesson.n === 2) return labTask2(rng);
+  if (lesson.n === 3) return labTask3(rng);
+  if (lesson.n === 4) return labTask4(rng);
+  return labTask1(rng);
+}
+
+function ensureLab(lesson) {
+  if (!lesson.lab) lesson.lab = { index: 0, correct: 0, task: null, miss: null };
+  if (!lesson.lab.task) lesson.lab.task = makeLabTask(lesson);
+}
+
+function labReady(lesson) {
+  return !!(lesson.lab && lesson.lab.correct >= LAB_NEED && (lesson.timeMs || 0) >= LAB_MS);
+}
+
+function labHtml(lesson) {
+  ensureLab(lesson);
+  const task = lesson.lab.task;
+  const ms = lesson.timeMs || 0;
+  const leftMin = Math.max(0, Math.ceil((LAB_MS - ms) / 60000));
+  const width = Math.min(100, Math.round(ms / LAB_MS * 100));
+  const ready = labReady(lesson);
+  const timeText = ms >= LAB_MS ? 'Полчаса набраны' : 'До получаса ещё ' + leftMin + ' мин';
+  const body = task.kind === 'number'
+    ? '<label class="field">Целое число<input id="lab-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="lab-num">Проверить</button>'
+    : task.options.map((option, index) => `<button class="btn choice ${lesson.lab.miss === index ? 'is-wrong' : ''}" type="button" data-act="lab-pick" data-i="${index}">${esc(option)}</button>`).join('');
+  return `<article class="card no-cheat mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. Урок занимает полчаса: примеры можно решать, пока идёт время.</p><p class="blitz-q">${esc(task.text)}</p>${body}<button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
+}
+
+function labTick() {
+  const lesson = activeLesson();
+  if (!lesson || lesson.phase !== 'lab') return;
+  const ms = lesson.timeMs || 0;
+  const left = document.querySelector('[data-lab-left]');
+  const bar = document.querySelector('[data-lab-bar]');
+  const next = document.querySelector('[data-lab-next]');
+  if (bar) bar.style.width = Math.min(100, ms / LAB_MS * 100) + '%';
+  if (left) {
+    const leftMin = Math.max(0, Math.ceil((LAB_MS - ms) / 60000));
+    const solved = lesson.lab && lesson.lab.correct >= LAB_NEED;
+    left.textContent = (ms >= LAB_MS ? 'Полчаса набраны' : 'До получаса ещё ' + leftMin + ' мин') + (solved ? '. Примеры уже есть.' : '. Нужно ' + LAB_NEED + ' верных.');
+  }
+  if (next) next.classList.toggle('is-hidden', !labReady(lesson));
 }
 
 function resultHtml(lesson) {
@@ -3565,8 +3704,51 @@ function handleAct(act, btn) {
     render({ toTop: true });
     return;
   }
+  if (act === 'lab-pick' && lesson && lesson.phase === 'lab' && lesson.lab && lesson.lab.task && lesson.lab.task.kind === 'choice') {
+    const ok = Number(btn.dataset.i) === lesson.lab.task.correctIndex;
+    if (!ok) {
+      lesson.lab.miss = Number(btn.dataset.i);
+      save();
+      render();
+      return;
+    }
+    lesson.lab.miss = null;
+    lesson.lab.correct += 1;
+    lesson.lab.index += 1;
+    lesson.lab.task = makeLabTask(lesson);
+    save();
+    render();
+    return;
+  }
+  if (act === 'lab-num' && lesson && lesson.phase === 'lab' && lesson.lab && lesson.lab.task && lesson.lab.task.kind === 'number') {
+    const parsed = readInt('lab-num');
+    if (!parsed.ok) { toast('Введите целое число.'); return; }
+    if (parsed.value !== lesson.lab.task.answer) { toast('Пока не сходится. Посчитайте ещё раз.'); return; }
+    lesson.lab.correct += 1;
+    lesson.lab.index += 1;
+    lesson.lab.task = makeLabTask(lesson);
+    save();
+    render();
+    return;
+  }
+  if (act === 'lab-next' && lesson && lesson.phase === 'lab') {
+    if (!labReady(lesson)) { toast('Нужны 8 верных примеров и полчаса урока.'); return; }
+    lesson.lab.done = true;
+    if (!lesson.notes) lesson.notes = ['', '', ''];
+    lesson.phase = 'notes';
+    save();
+    render({ toTop: true });
+    return;
+  }
   if (act === 'go-notes') {
     if (!trainerReady(lesson)) { toast('Сначала завершите практику.'); return; }
+    if (!lesson.lab || !lesson.lab.done) {
+      ensureLab(lesson);
+      lesson.phase = 'lab';
+      save();
+      render({ toTop: true });
+      return;
+    }
     if (!lesson.notes) lesson.notes = ['', '', ''];
     lesson.phase = 'notes';
     save();
@@ -3838,6 +4020,7 @@ function boot() {
     paintClocks();
     readGateTick();
     blitzTick();
+    labTick();
     if (accumulateTime() && Date.now() - lastPersist > 1000) save();
   }, 250);
   if (!state.student && location.hash === '#teacher') state.teacherDoor = true;
@@ -3845,7 +4028,7 @@ function boot() {
   render({ toTop: true });
   if (state && state.student) publishProgress();
   const opened = currentLessonNumber();
-  if (opened && state.lessons[opened] && ['theory', 'trainer', 'notes', 'blitz'].indexOf(state.lessons[opened].phase) >= 0) {
+  if (opened && state.lessons[opened] && ['theory', 'trainer', 'lab', 'notes', 'blitz'].indexOf(state.lessons[opened].phase) >= 0) {
     toast('Продолжаем урок с сохранённого места. Обновление страницы не сбрасывает ошибки.');
   }
 }
