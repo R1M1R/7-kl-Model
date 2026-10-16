@@ -1722,9 +1722,28 @@ function teacherJournalSection() {
   </article>`;
 }
 
+function lessonByNumber(row, n) {
+  return (row.lessons || []).find((lesson) => lesson.n === n) || null;
+}
+
+function gradeMark(lesson) {
+  if (!lesson || !lesson.done || !lesson.grade) return '–';
+  return `<span class="badge grade-${lesson.grade}">${lesson.grade}</span>`;
+}
+
 function journalCards(rows) {
-  if (!rows.length) return '<p class="fine">В этом классе пока нет сданных работ.</p>';
-  return rows.map((row) => {
+  if (!rows.length) return '<p class="fine">Пока нет сданных работ.</p>';
+  const sorted = rows.slice().sort((a, b) => String(a.groupId || '').localeCompare(String(b.groupId || ''))
+    || String(a.lastName || '').localeCompare(String(b.lastName || ''), 'ru'));
+  const lessonCount = sorted.reduce((sum, row) => sum + (row.lessons || []).filter((lesson) => lesson.done).length, 0);
+  const hwCount = sorted.reduce((sum, row) => sum + (row.homework || []).filter((item) => item.done).length, 0);
+  const body = sorted.map((row) => {
+    const marks = [1, 2, 3, 4].map((n) => `<td>${gradeMark(lessonByNumber(row, n))}</td>`).join('');
+    const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
+    const hw = (row.homework || []).filter((item) => item.done).length;
+    return `<tr><td>${esc(row.lastName)} ${esc(row.firstName)}</td><td>${esc(row.groupId || '')}</td>${marks}<td>${points}</td><td>${hw}/4</td></tr>`;
+  }).join('');
+  const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
       const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : `Урок ${lesson.n}: не сдан`;
       const notes = (lesson.notes || []).filter(Boolean).map((line, index) => `дневник ${index + 1}: ${line}`).join('\n');
@@ -1735,9 +1754,11 @@ function journalCards(rows) {
       const photo = item.photoUrl ? `<a href="${esc(item.photoUrl)}" target="_blank" rel="noopener">Открыть фото</a><img class="hw-photo" alt="Фото домашнего задания ${item.n}" src="${esc(item.photoUrl)}">` : '';
       return `<h3>ДЗ ${item.n}</h3>${text}${photo}`;
     }).join('');
-    const group = row.groupId ? `, группа ${row.groupId}` : '';
-    return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, ${esc(row.className)}${esc(group)}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
+    return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, группа ${esc(row.groupId || '–')}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
   }).join('');
+  return `<p class="fine">Учеников ${sorted.length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
+    <div class="table-wrap"><table class="rank journal-board"><tr><th>Ученик</th><th>Гр.</th><th>1</th><th>2</th><th>3</th><th>4</th><th>Баллы</th><th>ДЗ</th></tr>${body}</table></div>
+    <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
 }
 
 function photoField() {
