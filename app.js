@@ -2202,9 +2202,13 @@ function trainer2(lesson) {
     return `<article class="card no-cheat"><h3>График и расчёт</h3><p>${esc(scenario.story)}</p>${nowNext('Поставьте ползунки по условию и впишите число по формуле.', 'Пустое поле попытку не тратит. Верх шкалы — не ответ.')}${exampleBox('Если ответ 120, а шкала сверху подписана 150, в поле пишут 120. Верхняя подпись только рисует график.')}<p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">Рабочая формула: ${esc(correct)}</p><label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать расчёт</button>${canvas}${sliders}</article>`;
   }
   if (lesson.trainer.stage === 'extra') {
-    return `<article class="card no-cheat"><h3>Промежуточная величина</h3><p>${esc(scenario.story)}</p>${nowNext('Найдите величину, которая нужна для основного ответа.', 'Сдайте число. Пустое поле попытку не тратит.')}${exampleBox('Встречный ветер 10 км/ч при скорости 60 км/ч даёт путевую скорость 50 км/ч. Складывать скорость, ветер и время нельзя.')}<label class="field">${esc(scenario.extraAsk)}<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать величину</button>${canvas}${sliders}</article>`;
+    const mainSame = scenario.mainGiven === scenario.mainAnswer;
+    const mainCheck = scenario.mainGiven == null ? '' : `<p class="${mainSame ? 'ok-text' : 'warn-text'}">Ваш расчёт: ${scenario.mainGiven}. Верный результат: ${scenario.mainAnswer}. ${mainSame ? 'Число совпало.' : 'Балл за ошибку уже снят, число показано, чтобы сверить формулу.'}</p>`;
+    return `<article class="card no-cheat"><h3>Промежуточная величина</h3><p>${esc(scenario.story)}</p>${mainCheck}${nowNext('Найдите величину, которая нужна для основного ответа.', 'Сдайте число. Пустое поле попытку не тратит.')}${exampleBox('Встречный ветер 10 км/ч при скорости 60 км/ч даёт путевую скорость 50 км/ч. Складывать скорость, ветер и время нельзя.')}<label class="field">${esc(scenario.extraAsk)}<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать величину</button>${canvas}${sliders}</article>`;
   }
-  return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
+  const extraSame = scenario.extraGiven === scenario.extraAnswer;
+  const extraCheck = scenario.extraGiven == null ? '' : `<p class="${extraSame ? 'ok-text' : 'warn-text'}">Ваша величина: ${scenario.extraGiven}. Верно: ${scenario.extraAnswer}.</p>`;
+  return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p>${extraCheck}<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
 function shapeHtml(shape) {
@@ -2285,15 +2289,21 @@ function trainer4(lesson) {
     return `<article class="card no-cheat"><h3>Схема дорог</h3>${nowNext('Перенесите километры из списка в поля у каждой дороги.', 'Пустое поле попытку не тратит. Неверный вес снимает 10.')}${exampleBox('Если в списке «Дом — Школа: 5 км», в поле этой же дороги пишут 5, а не длину соседней дороги.')}${roadSvg(graph)}${table}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
-    let wrong = 0;
-    graph.edges.forEach((edge) => { if (Number(graph.given[edge.id]) !== edge.w) wrong += 1; });
-    return `<article class="card"><h3>Веса сданы</h3><p>Неверных рёбер: ${wrong}.</p><button class="btn btn-primary" type="button" data-act="path-start">Искать маршрут</button></article>`;
+    const lines = graph.edges.map((edge) => {
+      const given = Number(graph.given[edge.id]);
+      const ok = given === edge.w;
+      return `<p class="${ok ? 'ok-text' : 'warn-text'}">${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}: вы написали ${given} км, верно ${edge.w} км.</p>`;
+    }).join('');
+    return `<article class="card"><h3>Веса сданы</h3><p>Сверьте каждую дорогу. Баллы уже учтены, повторно сдать нельзя.</p>${lines}<button class="btn btn-primary" type="button" data-act="path-start">Искать маршрут</button></article>`;
   }
   if (lesson.trainer.stage === 'path') {
     return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3>${nowNext('От «Дома» до «Стадиона» через «' + graph.names[graph.via] + '». Сложите километры по дорогам.', 'Сдайте одну длину всего пути, не длину одного ребра.')}${exampleBox('Маршрут 4 км + 6 км длиннее маршрута 3 км + 3 км: сравнивают суммы, 10 и 6, а не красоту линии.')}${roadSvg(graph)}${table}<label class="field">Длина всего пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
-  return `<article class="card"><h3>Маршрут проверен</h3><p>${esc(best.path.map((id) => graph.names[id]).join(' → '))}. Длина ${best.len} км.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
+  const wrote = graph.pathGiven;
+  const same = best && wrote === best.len;
+  const compare = best ? `<p class="${same ? 'ok-text' : 'warn-text'}">Вы написали ${wrote == null ? '—' : wrote} км. Верная сумма ${best.len} км: ${esc(best.path.map((id) => graph.names[id]).join(' → '))}.</p><p>Длину пути получают сложением километров его дорог.</p>` : '';
+  return `<article class="card"><h3>Маршрут проверен</h3>${compare}<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
 function blitzHtml(lesson) {
@@ -2762,10 +2772,12 @@ function actConfirm(name) {
       if (name === 'math-submit') {
         if (!slidersMatch(scenario)) addTrainerError(lesson, 1);
         if (parsed.value !== scenario.mainAnswer) addTrainerError(lesson, 1);
+        scenario.mainGiven = parsed.value;
         scenario.mainLocked = true;
         lesson.trainer.stage = 'extra';
       } else {
         if (parsed.value !== scenario.extraAnswer) addTrainerError(lesson, 1);
+        scenario.extraGiven = parsed.value;
         scenario.extraLocked = true;
         lesson.trainer.stage = 'review';
       }
@@ -2843,6 +2855,7 @@ function actConfirm(name) {
       if (lesson.trainer.graph.pathSubmitted) return;
       const best = shortestVia(buildAdj(lesson.trainer.graph.edges), 'A', lesson.trainer.graph.via, 'E');
       if (!best || parsed.value !== best.len) addTrainerError(lesson, 1);
+      lesson.trainer.graph.pathGiven = parsed.value;
       lesson.trainer.graph.pathSubmitted = true;
       lesson.trainer.stage = 'path-review';
       save();
