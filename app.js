@@ -1726,6 +1726,18 @@ function lessonByNumber(row, n) {
   return (row.lessons || []).find((lesson) => lesson.n === n) || null;
 }
 
+function gapLine(rows) {
+  if (!rows || !rows.length) return '';
+  const parts = [1, 2, 3, 4].map((n) => {
+    const missing = rows.filter((row) => {
+      const lesson = lessonByNumber(row, n);
+      return !lesson || !lesson.done;
+    }).length;
+    return missing ? `урок ${n} не сдан у ${missing}` : '';
+  }).filter(Boolean);
+  return parts.length ? 'Среди приславших: ' + parts.join(', ') + '.' : 'Среди приславших все четыре урока сданы.';
+}
+
 function gradeMark(lesson) {
   if (!lesson || !lesson.done || !lesson.grade) return '–';
   return `<span class="badge grade-${lesson.grade}">${lesson.grade}</span>`;
@@ -1761,6 +1773,7 @@ function journalCards(rows) {
     return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, группа ${esc(row.groupId || '–')}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
   }).join('');
   return `<p class="fine">Учеников ${sorted.length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
+    <p class="fine">${esc(gapLine(sorted))}</p>
     <div class="table-wrap"><table class="rank journal-board"><tr><th>Ученик</th><th>Гр.</th><th>1</th><th>2</th><th>3</th><th>4</th><th>Баллы</th><th>ДЗ</th></tr>${body}</table></div>
     <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
 }
@@ -1770,7 +1783,7 @@ let lastJournalText = '';
 function journalTsv(title, rows) {
   const sorted = (rows || []).slice().sort((a, b) => String(a.groupId || '').localeCompare(String(b.groupId || ''))
     || String(a.lastName || '').localeCompare(String(b.lastName || ''), 'ru'));
-  const lines = [title, 'Фамилия\tИмя\tГруппа\tУрок1\tУрок2\tУрок3\tУрок4\tБаллы\tДЗ'];
+  const lines = [title, gapLine(sorted), 'Фамилия\tИмя\tГруппа\tУрок1\tУрок2\tУрок3\tУрок4\tБаллы\tДЗ'];
   sorted.forEach((row) => {
     const grades = [1, 2, 3, 4].map((n) => {
       const lesson = lessonByNumber(row, n);
@@ -2903,12 +2916,18 @@ function handleAct(act, btn) {
       const blocks = [];
       const sheets = [];
       for (const name of (act === 'teacher-claim-all' ? parallelClassNames() : names)) {
-        const result = await LabCloud.teacherJournal(roomFromClass(name));
-        const role = result.access.role === 'master'
-          ? 'ведущий, все группы'
-          : (result.access.role === 'teacher' ? 'группы ' + result.access.groups.join(', ') : 'нет доступа');
-        blocks.push(`<section class="subcard"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
-        sheets.push(journalTsv(name, result.rows));
+        try {
+          const result = await LabCloud.teacherJournal(roomFromClass(name));
+          const role = result.access.role === 'master'
+            ? 'ведущий, все группы'
+            : (result.access.role === 'teacher' ? 'группы ' + result.access.groups.join(', ') : 'нет доступа');
+          blocks.push(`<section class="subcard"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
+          sheets.push(journalTsv(name, result.rows));
+        } catch (error) {
+          const text = teacherErrorText(error);
+          blocks.push(`<section class="subcard"><h3>${esc(name)}</h3><p class="field-error">${esc(text)}</p></section>`);
+          sheets.push(name + '\n' + text);
+        }
       }
       lastJournalText = sheets.join('\n\n');
       const node = $('journal-out');
