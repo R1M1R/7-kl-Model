@@ -2148,15 +2148,20 @@ function trainer1(lesson) {
       if (trainer.task.submitted) cls = feature.essential ? 'is-ok' : (on ? 'is-no' : '');
       return `<button class="btn chip ${cls}" type="button" data-act="feat-toggle" data-id="${feature.id}" ${trainer.task.submitted ? 'disabled' : ''}>${esc(feature.text)}</button>`;
     }).join('');
+    const missed = trainer.task.submitted ? trainer.task.features.filter((feature) => feature.essential && trainer.task.picked.indexOf(feature.id) < 0).map((feature) => feature.text) : [];
+    const extra = trainer.task.submitted ? trainer.task.features.filter((feature) => !feature.essential && trainer.task.picked.indexOf(feature.id) >= 0).map((feature) => feature.text) : [];
+    const featureWhy = trainer.task.submitted
+      ? `<p class="${missed.length || extra.length ? 'warn-text' : 'ok-text'}">${missed.length || extra.length ? 'Зелёным отмечены нужные признаки.' : 'Все существенные признаки на месте.'}</p>${missed.length ? `<p class="warn-text">Не отметили, хотя для цели нужно: ${esc(missed.join('; '))}.</p>` : ''}${extra.length ? `<p class="warn-text">Отметили лишнее: ${esc(extra.join('; '))}.</p>` : ''}`
+      : '';
     const action = trainer.task.submitted
-      ? `<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Зелёным отмечены существенные признаки.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
+      ? `${featureWhy}<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Баллы уже учтены.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
     return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div>${nowNext('Отметьте только признаки, без которых цель не решить.', 'Сдайте выбор. Лишний или пропущенный признак — ошибка.')}${exampleBox('Для расхода топлива масса самолёта нужна, а цвет фюзеляжа — нет.')}<div class="grid-2">${chips}</div>${action}</article>`;
   }
   const cards = trainer.items.map((item) => `<div class="model-pick"><p>${esc(item.text)}</p><div class="btn-row">
       <button class="btn ${trainer.answers[item.id] === 'mat' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="mat" ${trainer.classSubmitted ? 'disabled' : ''}>Материальная</button>
       <button class="btn ${trainer.answers[item.id] === 'inf' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="inf" ${trainer.classSubmitted ? 'disabled' : ''}>Информационная</button>
-    </div>${trainer.classSubmitted ? `<p class="${trainer.answers[item.id] === item.type ? 'ok-text' : 'bad-text'}">Верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}</p>` : ''}</div>`).join('');
+    </div>${trainer.classSubmitted ? `<p class="${trainer.answers[item.id] === item.type ? 'ok-text' : 'warn-text'}">Вы выбрали: ${trainer.answers[item.id] === 'mat' ? 'материальная' : 'информационная'}. Верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}.</p>` : ''}</div>`).join('');
   const action = trainer.classSubmitted
     ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
     : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать классификацию</button>';
@@ -2240,8 +2245,13 @@ function trainer3(lesson) {
       const block = byIdMap[id];
       return `<button class="btn flow-block" type="button" data-act="algo-pick" data-id="${id}">${shapeHtml(block.shape)}<span>${esc(block.text)}</span></button>`;
     }).join('')}</div>`;
+    const fixes = algo.orderLocked ? algo.slots.map((id, index) => {
+      if (id === algo.correct[index]) return '';
+      const yours = id && byIdMap[id] ? byIdMap[id].text : 'пусто';
+      return `<p class="warn-text">Шаг ${index + 1}: вы поставили «${esc(yours)}», нужен «${esc(byIdMap[algo.correct[index]].text)}».</p>`;
+    }).join('') : '';
     const action = algo.orderLocked
-      ? `<p>Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
+      ? `${fixes}<p class="ok-text">Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
     return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p>${nowNext('Нажмите блок: он встанет в первый свободный шаг. Занятый шаг возвращает блок назад.', 'После ромба сначала «да», потом «нет». Затем сдайте порядок.')}${exampleBox('Овал — начало и конец. Параллелограмм — ввод. Ромб — вопрос «да или нет». Прямоугольник — действие.')}${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
@@ -2252,7 +2262,10 @@ function trainer3(lesson) {
       : `<label class="field">Ответ<input id="trace-num" inputmode="numeric" autocomplete="off"></label>`;
     return `<article class="card no-cheat"><h3>Трассировка верной схемы</h3>${nowNext('Пройдите схему сверху вниз и ответьте на вопрос.', 'Сдайте один раз.')}${exampleBox('Если условие в ромбе истинно, выполняется только ветка «да». Ветка «нет» в этот проход молчит.')}${correctList}<p>${esc(algo.challenge.text)}</p>${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать трассировку</button></article>`;
   }
-  return `<article class="card"><h3>Трассировка сдана</h3><p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
+  const traceCheck = algo.traceGivenText
+    ? `<p class="${algo.traceOk ? 'ok-text' : 'warn-text'}">Вы ответили: ${esc(algo.traceGivenText)}. Верно: ${esc(algo.traceRightText)}.</p>`
+    : '';
+  return `<article class="card"><h3>Трассировка сдана</h3>${traceCheck}<p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
 function graphTable(graph) {
@@ -2810,15 +2823,21 @@ function actConfirm(name) {
     if (algo.challenge.type === 'choice') {
       if (algo.tracePick == null) { toast('Выберите выход алгоритма.'); return; }
       okValue = algo.tracePick === algo.challenge.correctIndex;
+      value = algo.challenge.options[algo.tracePick];
     } else {
       const parsed = readInt('trace-num');
       if (!parsed.ok) { toast('Введите целое число.'); return; }
-      value = parsed.value;
-      okValue = value === algo.challenge.answer;
+      value = String(parsed.value);
+      okValue = parsed.value === algo.challenge.answer;
     }
     confirmModal('Сдать трассировку?', 'Попытка одна.', () => {
       if (algo.traceLocked) return;
       if (!okValue) addTrainerError(lesson, 1);
+      algo.traceOk = okValue;
+      algo.traceGivenText = String(value);
+      algo.traceRightText = algo.challenge.type === 'choice'
+        ? algo.challenge.options[algo.challenge.correctIndex]
+        : String(algo.challenge.answer);
       algo.traceLocked = true;
       lesson.trainer.stage = 'trace-review';
       save();
