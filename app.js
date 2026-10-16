@@ -2109,7 +2109,10 @@ function theoryHtml(lesson) {
   const next = card.solved
     ? (lesson.theory.index < 4
       ? '<button class="btn btn-primary" type="button" data-act="theory-next">Дальше</button>'
-      : '<button class="btn btn-primary" type="button" data-act="go-trainer">К тренажёру</button>')
+      : '<button class="btn btn-primary" type="button" data-act="go-trainer">К практике</button>')
+    : '';
+  const recap = lesson.theory.index === 4 && card.solved
+    ? `<div class="key-idea"><span>Возьмите в практику</span><p>Эти мысли понадобятся в задании. За список баллы не ставятся.</p><ul class="list-check">${META[lesson.n].bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul></div>`
     : '';
   const note = card.solved
     ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
@@ -2117,7 +2120,7 @@ function theoryHtml(lesson) {
   const mission = MISSIONS[lesson.n];
   const parts = theoryParts(card.body);
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div>${note}${options}${next}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div>${note}${options}${recap}${next}</article>`;
 }
 
 function nowNext(now, next) {
