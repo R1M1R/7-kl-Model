@@ -464,6 +464,11 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .matrix th { background: #0d1a30; }
 
 .plot { width: 100%; height: 220px; border-radius: 16px; display: block; background: #0d1526; border: 1px solid var(--line); }
+.target-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.target-row b { padding: 6px 10px; border-radius: 999px; background: #0d1a30; border: 1px solid var(--line); }
+.target-row b.is-on { color: #041018; background: var(--good); border-color: transparent; }
+.live-model { margin: 8px 0; padding: 12px; border-radius: 14px; background: #0d1a30; font-size: 1.12rem; font-weight: 800; }
+.live-model.is-ready { color: #041018; background: var(--good); }
 .road { width: 100%; height: auto; background: #0d1526; border-radius: 16px; border: 1px solid var(--line); }
 .road line { stroke: var(--accent, #8ea3c2); stroke-width: 3; }
 .road circle { stroke: #041018; stroke-width: 2; }

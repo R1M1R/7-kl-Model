@@ -1598,7 +1598,7 @@ function cloudStudentId() {
 function progressPayload() {
   const lessons = [1, 2, 3, 4].map((n) => {
     const lesson = state.lessons[n];
-    if (!lesson || lesson.phase !== 'done') return { n, done: false, grade: null, total: null };
+    if (!lesson || lesson.phase !== 'done') return { n, done: false };
     return {
       n,
       done: true,
@@ -1629,7 +1629,7 @@ function progressPayload() {
       firstName: state.student.firstName,
       className: state.student.className,
       groupId: state.groupId || '1',
-      grades: lessons.map((lesson) => lesson.grade),
+      grades: lessons.map((lesson) => (lesson.done ? lesson.grade : 0)),
       points: doneLessons.reduce((sum, lesson) => sum + (lesson.total || 0), 0),
       lessonsDone: doneLessons.length,
       hwDone: homework.filter((item) => item.done).length
@@ -2183,12 +2183,46 @@ function plotSpec(scenario) {
   if (scenario.kind === 'drone') {
     const speed = Math.max(0, scenario.sliders.v.value - scenario.sliders.w.value);
     const xMax = Math.max(1, scenario.sliders.t.value);
-    return { xMax, y0: 0, slope: speed, yMax: niceCeil(speed * xMax), xLabel: 't, ч', yLabel: 'S, км' };
+    return { xMax, y0: 0, slope: speed, yMax: niceCeil(Math.max(speed, 1) * xMax), xLabel: 't, ч', yLabel: 'S, км' };
   }
   const v0 = scenario.sliders.v0.value;
   const q = scenario.sliders.q.value;
   const t = Math.max(1, scenario.sliders.t.value);
-  return { xMax: t, y0: v0, slope: q, yMax: niceCeil(v0 + q * t), xLabel: 't, мин', yLabel: 'V, л' };
+  return { xMax: t, y0: v0, slope: q, yMax: niceCeil(Math.max(10, v0 + q * t)), xLabel: 't, мин', yLabel: 'V, л' };
+}
+
+function liveModelText(scenario) {
+  const ready = slidersMatch(scenario);
+  if (scenario.kind === 'drone') {
+    const v = scenario.sliders.v.value;
+    const w = scenario.sliders.w.value;
+    const t = scenario.sliders.t.value;
+    const speed = v - w;
+    const path = speed * t;
+    return {
+      ready,
+      text: speed < 0
+        ? `Ветер ${w} сильнее скорости ${v}: так дрон назад не считаем. Уменьши ветер.`
+        : `График сейчас: S = (${v} − ${w}) · ${t} = ${path} км`
+    };
+  }
+  const v0 = scenario.sliders.v0.value;
+  const q = scenario.sliders.q.value;
+  const t = scenario.sliders.t.value;
+  return { ready, text: `График сейчас: V = ${v0} + ${q} · ${t} = ${v0 + q * t} л` };
+}
+
+function targetChips(scenario) {
+  return Object.keys(scenario.sliders).map((key) => {
+    const slider = scenario.sliders[key];
+    const on = slider.value === slider.target;
+    return `<b class="${on ? 'is-on' : ''}">${esc(slider.label.split(',')[0])} = ${slider.target}</b>`;
+  }).join('');
+}
+
+function modelPlay(scenario) {
+  const live = liveModelText(scenario);
+  return `<p class="fine">По условию</p><div class="target-row">${targetChips(scenario)}</div><p class="live-model ${live.ready ? 'is-ready' : ''}" data-live-model>${esc(live.text)}</p>`;
 }
 
 function trainer2(lesson) {
@@ -2204,12 +2238,12 @@ function trainer2(lesson) {
   const canvas = `<canvas class="plot" data-plot-live="1" data-ymax="${plotSpec(scenario).yMax}"></canvas>`;
   if (lesson.trainer.stage === 'calc') {
     const correct = scenario.formulas.find((formula) => formula.ok).text;
-    return `<article class="card no-cheat"><h3>График и расчёт</h3><p>${esc(scenario.story)}</p>${nowNext('Поставьте ползунки по условию и впишите число по формуле.', 'Пустое поле попытку не тратит. Верх шкалы — не ответ.')}${exampleBox('Если ответ 120, а шкала сверху подписана 150, в поле пишут 120. Верхняя подпись только рисует график.')}<p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">Рабочая формула: ${esc(correct)}</p><label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать расчёт</button>${canvas}${sliders}</article>`;
+    return `<article class="card no-cheat"><h3>Собери модель</h3><p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">${esc(correct)}</p>${modelPlay(scenario)}<p class="fine">Крути ползунки, пока все три числа условия не загорятся. Потом впиши число с графика. Верх шкалы — не ответ.</p>${canvas}${sliders}<label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать число с графика</button></article>`;
   }
   if (lesson.trainer.stage === 'extra') {
     const mainSame = scenario.mainGiven === scenario.mainAnswer;
-    const mainCheck = scenario.mainGiven == null ? '' : `<p class="${mainSame ? 'ok-text' : 'warn-text'}">Ваш расчёт: ${scenario.mainGiven}. Верный результат: ${scenario.mainAnswer}. ${mainSame ? 'Число совпало.' : 'Балл за ошибку уже снят, число показано, чтобы сверить формулу.'}</p>`;
-    return `<article class="card no-cheat"><h3>Промежуточная величина</h3><p>${esc(scenario.story)}</p>${mainCheck}${nowNext('Найдите величину, которая нужна для основного ответа.', 'Сдайте число. Пустое поле попытку не тратит.')}${exampleBox('Встречный ветер 10 км/ч при скорости 60 км/ч даёт путевую скорость 50 км/ч. Складывать скорость, ветер и время нельзя.')}<label class="field">${esc(scenario.extraAsk)}<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать величину</button>${canvas}${sliders}</article>`;
+    const mainCheck = scenario.mainGiven == null ? '' : `<p class="${mainSame ? 'ok-text' : 'warn-text'}">Твой расчёт: ${scenario.mainGiven}. Верно: ${scenario.mainAnswer}.</p>`;
+    return `<article class="card no-cheat"><h3>Ещё одна величина</h3>${mainCheck}${modelPlay(scenario)}<p class="fine">${esc(scenario.extraAsk)}</p>${canvas}${sliders}<label class="field">Ответ<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать</button></article>`;
   }
   const extraSame = scenario.extraGiven === scenario.extraAnswer;
   const extraCheck = scenario.extraGiven == null ? '' : `<p class="${extraSame ? 'ok-text' : 'warn-text'}">Ваша величина: ${scenario.extraGiven}. Верно: ${scenario.extraAnswer}.</p>`;
@@ -2444,8 +2478,8 @@ function render(options) {
 function drawPlot(canvas, spec) {
   const ctx = canvas.getContext('2d');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const width = canvas.clientWidth || 320;
-  const height = canvas.clientHeight || 230;
+  const width = canvas.clientWidth || (canvas.parentElement && canvas.parentElement.clientWidth) || 320;
+  const height = canvas.clientHeight || 220;
   canvas.width = Math.floor(width * dpr);
   canvas.height = Math.floor(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -3437,6 +3471,18 @@ function boot() {
       lesson.trainer.scenario.sliders[slider].value = Number(event.target.value);
       const label = document.querySelector(`[data-sv="${slider}"]`);
       if (label) label.textContent = event.target.value;
+      const live = document.querySelector('[data-live-model]');
+      if (live) {
+        const model = liveModelText(lesson.trainer.scenario);
+        live.textContent = model.text;
+        live.classList.toggle('is-ready', model.ready);
+      }
+      document.querySelectorAll('.target-row b').forEach((node) => {
+        const key = Object.keys(lesson.trainer.scenario.sliders).find((name) => node.textContent.indexOf(lesson.trainer.scenario.sliders[name].label.split(',')[0] + ' =') === 0);
+        if (!key) return;
+        const item = lesson.trainer.scenario.sliders[key];
+        node.classList.toggle('is-on', item.value === item.target);
+      });
       drawLivePlot();
       save();
       return;
