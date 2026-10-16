@@ -1689,17 +1689,17 @@ function teacherJournalSection() {
     </article>`;
   }
   return `<article class="card"><h3>Журнал всего класса</h3>
-    <p>Автор и ведущий: Усеинов Эмир Рустемович. Один раз закрепите вход за классом. Дальше на этом телефоне достаточно кнопки «Открыть журнал».</p>
+    <p>Автор и ведущий: Усеинов Эмир Рустемович. Письмо на почту не нужно: введите почту, пароль и класс, затем откройте журнал.</p>
     <div class="stack">
       <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}" placeholder="Только для учителя"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
-      <button class="btn btn-ghost" type="button" data-act="teacher-reset">Прислать письмо для пароля</button>
       <button class="btn btn-primary" type="button" data-act="teacher-journal">Открыть журнал</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-register">Закрепить меня ведущим этого класса</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-logout">Выйти из входа учителя</button>
       <details class="rules">
-        <summary>Доступ коллеги</summary>
+        <summary>Доступ коллеги и письмо для пароля</summary>
+        <button class="btn btn-ghost" type="button" data-act="teacher-reset">Прислать письмо для пароля</button>
         <p class="fine">На её телефоне та же вкладка: её почта, пароль и кнопка «Показать мой код доступа». Код вставьте сюда и отметьте только её группы.</p>
         <button class="btn btn-ghost" type="button" data-act="colleague-register">Показать мой код доступа</button>
         <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
