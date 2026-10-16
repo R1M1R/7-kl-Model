@@ -1737,11 +1737,15 @@ function journalCards(rows) {
     || String(a.lastName || '').localeCompare(String(b.lastName || ''), 'ru'));
   const lessonCount = sorted.reduce((sum, row) => sum + (row.lessons || []).filter((lesson) => lesson.done).length, 0);
   const hwCount = sorted.reduce((sum, row) => sum + (row.homework || []).filter((item) => item.done).length, 0);
+  let lastGroup = null;
   const body = sorted.map((row) => {
+    const group = String(row.groupId || '–');
+    const band = group === lastGroup ? '' : `<tr class="group-row"><td colspan="8">Группа ${esc(group)}</td></tr>`;
+    lastGroup = group;
     const marks = [1, 2, 3, 4].map((n) => `<td>${gradeMark(lessonByNumber(row, n))}</td>`).join('');
     const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
     const hw = (row.homework || []).filter((item) => item.done).length;
-    return `<tr><td>${esc(row.lastName)} ${esc(row.firstName)}</td><td>${esc(row.groupId || '')}</td>${marks}<td>${points}</td><td>${hw}/4</td></tr>`;
+    return `${band}<tr><td>${esc(row.lastName)} ${esc(row.firstName)}</td><td>${esc(group)}</td>${marks}<td>${points}</td><td>${hw}/4</td></tr>`;
   }).join('');
   const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
@@ -1759,6 +1763,25 @@ function journalCards(rows) {
   return `<p class="fine">Учеников ${sorted.length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
     <div class="table-wrap"><table class="rank journal-board"><tr><th>Ученик</th><th>Гр.</th><th>1</th><th>2</th><th>3</th><th>4</th><th>Баллы</th><th>ДЗ</th></tr>${body}</table></div>
     <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
+}
+
+let lastJournalText = '';
+
+function journalTsv(title, rows) {
+  const sorted = (rows || []).slice().sort((a, b) => String(a.groupId || '').localeCompare(String(b.groupId || ''))
+    || String(a.lastName || '').localeCompare(String(b.lastName || ''), 'ru'));
+  const lines = [title, 'Фамилия\tИмя\tГруппа\tУрок1\tУрок2\tУрок3\tУрок4\tБаллы\tДЗ'];
+  sorted.forEach((row) => {
+    const grades = [1, 2, 3, 4].map((n) => {
+      const lesson = lessonByNumber(row, n);
+      return lesson && lesson.done ? lesson.grade : '–';
+    });
+    const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
+    const hw = (row.homework || []).filter((item) => item.done).length;
+    lines.push([row.lastName, row.firstName, row.groupId || '', grades.join('\t'), points, hw + '/4'].join('\t'));
+  });
+  if (!sorted.length) lines.push('Пока нет работ');
+  return lines.join('\n');
 }
 
 function photoField() {
@@ -2753,6 +2776,11 @@ function handleAct(act, btn) {
     return;
   }
   if (act === 'copy-code') { copyText(btn.dataset.code || ''); return; }
+  if (act === 'copy-journal') {
+    if (!lastJournalText) { toast('Сначала откройте журнал.'); return; }
+    copyText(lastJournalText);
+    return;
+  }
   if (act === 'verify') { runVerify(); return; }
   if (act === 'save-room') {
     const group = ($('room-group') && $('room-group').value) || '1';
@@ -2873,15 +2901,18 @@ function handleAct(act, btn) {
         }
       }
       const blocks = [];
+      const sheets = [];
       for (const name of (act === 'teacher-claim-all' ? parallelClassNames() : names)) {
         const result = await LabCloud.teacherJournal(roomFromClass(name));
         const role = result.access.role === 'master'
           ? 'ведущий, все группы'
           : (result.access.role === 'teacher' ? 'группы ' + result.access.groups.join(', ') : 'нет доступа');
         blocks.push(`<section class="subcard"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
+        sheets.push(journalTsv(name, result.rows));
       }
+      lastJournalText = sheets.join('\n\n');
       const node = $('journal-out');
-      if (node) node.innerHTML = blocks.join('');
+      if (node) node.innerHTML = '<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>' + blocks.join('');
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
