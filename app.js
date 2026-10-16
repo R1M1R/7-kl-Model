@@ -1699,8 +1699,9 @@ function teacherJournalSection() {
   return `<article class="card"><h3>Журнал всего класса</h3>
     <p>Нажмите класс или откройте все параллели. На кнопке четыре числа: сколько учеников сдали уроки 1, 2, 3 и 4.</p>
     <div class="stack">
-      <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}" placeholder="Только для учителя"></label>
-      <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
+      ${state.teacherOn ? '<p class="ok-text">Вход есть. Выберите класс.</p><button class="btn btn-ghost" type="button" data-act="teacher-show-login">Сменить вход</button>' : ''}
+      <label class="field ${state.teacherOn ? 'is-hidden' : ''}">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}" placeholder="Только для учителя"></label>
+      <label class="field ${state.teacherOn ? 'is-hidden' : ''}">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
       <p class="eyebrow">Параллели</p>
       <div class="parallel-picks">${parallelClassNames().map((name) => `<button class="btn btn-ghost" type="button" data-act="teacher-parallel" data-class="${esc(name)}">${esc(name)}</button>`).join('')}</div>
       <button class="btn btn-primary" type="button" data-act="teacher-all">Открыть все параллели</button>
@@ -2176,7 +2177,30 @@ function theoryHtml(lesson) {
   return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div>${note}${options}${recap}${next}</article>`;
 }
 
+function atDemo(lesson) {
+  if (!lesson || !lesson.trainer || lesson.trainer.demoSeen) return false;
+  if (lesson.n === 1) {
+    const task = lesson.trainer.task;
+    return lesson.trainer.stage === 'features' && task && !task.submitted && !task.picked.length;
+  }
+  if (lesson.n === 2) {
+    const scenario = lesson.trainer.scenario;
+    return lesson.trainer.stage === 'formula' && scenario && scenario.formulaPick == null;
+  }
+  if (lesson.n === 3) {
+    const algo = lesson.trainer.algo;
+    return lesson.trainer.stage === 'order' && algo && (!algo.slots || algo.slots.every((id) => !id));
+  }
+  if (lesson.n === 4) {
+    const graph = lesson.trainer.graph;
+    const draft = graph && graph.draft ? graph.draft : {};
+    return lesson.trainer.stage === 'edges' && graph && !graph.edgeSubmitted && !Object.keys(draft).length;
+  }
+  return false;
+}
+
 function trainerHtml(lesson) {
+  if (atDemo(lesson)) return toyHtml(lesson, true);
   const bank = `<p class="formula">Баллы практики: ${Math.max(0, 45 - 10 * lesson.trainer.errors)}. Ошибка −10, сдача одна.</p>`;
   if (lesson.n === 1) return bank + trainer1(lesson);
   if (lesson.n === 2) return bank + trainer2(lesson);
@@ -2541,8 +2565,9 @@ function blitzHtml(lesson) {
   return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Вопрос ${blitz.index + 1} из 4">${dots}</div><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
 }
 
-function toyHtml(lesson) {
+function toyHtml(lesson, practice) {
   if (!lesson.toy) lesson.toy = {};
+  const next = practice ? '<button class="btn btn-primary" type="button" data-act="demo-done">К заданию</button>' : '';
   if (lesson.n === 1) {
     const goal = lesson.toy.goal === 'look' ? 'look' : 'fuel';
     const traits = [
@@ -2554,18 +2579,18 @@ function toyHtml(lesson) {
       ['Рисунок на чехлах', 'look']
     ];
     const chips = traits.map((trait) => `<span class="toy-chip ${trait[1] === goal ? 'is-on' : ''}">${trait[0]}</span>`).join('');
-    return `<article class="card toy"><h3>Покрути цель</h3><p class="fine">Баллы не меняются. Цель другая — горят другие признаки.</p><div class="btn-row"><button class="btn ${goal === 'fuel' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-goal" data-goal="fuel">Расход топлива</button><button class="btn ${goal === 'look' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-goal" data-goal="look">Внешний вид</button></div><p class="toy-object">Машина</p><div class="toy-traits">${chips}</div><p class="play-count is-ready">${goal === 'fuel' ? 'Для расхода нужны числа.' : 'Для вида нужны цвет и форма.'}</p></article>`;
+    return `<article class="card toy"><h3>Покрути цель</h3><p class="fine">${practice ? 'Сначала пример. Здесь баллы не снимают.' : 'Баллы не меняются. Цель другая — горят другие признаки.'}</p><div class="btn-row"><button class="btn ${goal === 'fuel' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-goal" data-goal="fuel">Расход топлива</button><button class="btn ${goal === 'look' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-goal" data-goal="look">Внешний вид</button></div><p class="toy-object">🚗</p><div class="toy-traits">${chips}</div><p class="play-count is-ready">${goal === 'fuel' ? 'Для расхода нужны числа.' : 'Для вида нужны цвет и форма.'}</p>${next}</article>`;
   }
   if (lesson.n === 2) {
     const speed = lesson.toy.speed || 40;
-    return `<article class="card toy"><h3>Покрути дрон</h3><p class="fine">Два часа полёта. Баллы не меняются.</p><div class="toy-sky"><span class="toy-plane" style="left:${(speed - 10) / 70 * 100}%">✈</span></div><p class="live-model is-ready" data-toy-formula>S = ${speed} · 2 = ${speed * 2} км</p><div class="slider-row"><div class="slider-head"><span>Скорость, км/ч</span><b data-toy-speed-label>${speed}</b></div><input type="range" min="10" max="80" step="10" value="${speed}" data-toy-speed="1"></div></article>`;
+    return `<article class="card toy"><h3>Покрути дрон</h3><p class="fine">${practice ? 'Сначала пример. Здесь баллы не снимают.' : 'Два часа полёта. Баллы не меняются.'}</p><div class="toy-sky"><span class="toy-plane" style="left:${(speed - 10) / 70 * 100}%">✈</span></div><p class="live-model is-ready" data-toy-formula>S = ${speed} · 2 = ${speed * 2} км</p><div class="slider-row"><div class="slider-head"><span>Скорость, км/ч</span><b data-toy-speed-label>${speed}</b></div><input type="range" min="10" max="80" step="10" value="${speed}" data-toy-speed="1"></div>${next}</article>`;
   }
   if (lesson.n === 3) {
     const branch = lesson.toy.branch;
     const mood = branch === 'yes'
       ? '<p class="toy-mood is-cold">Класс остывает. Сработала ветка «да».</p>'
       : (branch === 'no' ? '<p class="toy-mood is-warm">В классе тепло. Сработала ветка «нет».</p>' : '<p class="toy-mood">Нажми условие в ромбе.</p>');
-    return `<article class="card toy"><h3>Нажми условие</h3><p class="fine">Если жарко — охлаждение. Баллы не меняются.</p>${mood}<div class="btn-row"><button class="btn ${branch === 'yes' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-branch" data-branch="yes">Да, жарко</button><button class="btn ${branch === 'no' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-branch" data-branch="no">Нет, нормально</button></div></article>`;
+    return `<article class="card toy"><h3>Нажми условие</h3><p class="fine">${practice ? 'Сначала пример. Здесь баллы не снимают.' : 'Если жарко — охлаждение. Баллы не меняются.'}</p>${mood}<div class="btn-row"><button class="btn ${branch === 'yes' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-branch" data-branch="yes">Да, жарко</button><button class="btn ${branch === 'no' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-branch" data-branch="no">Нет, нормально</button></div>${next}</article>`;
   }
   const roads = [
     ['short', 'Дом → Парк → Стадион', 9],
@@ -2574,8 +2599,9 @@ function toyHtml(lesson) {
   ];
   const pick = lesson.toy.road;
   const buttons = roads.map((road) => `<button class="btn toy-road ${pick === road[0] ? 'is-on' : ''} ${pick === road[0] && road[0] === 'short' ? 'is-win' : ''}" type="button" data-act="toy-road" data-road="${road[0]}"><span>${road[1]}</span><b>${road[2]} км</b></button>`).join('');
-  const note = pick === 'short' ? 'Сумма меньше — путь короче.' : (pick ? 'Этот длиннее. Нажми другой.' : 'Кто добежит быстрее?');
-  return `<article class="card toy"><h3>Запусти курьера</h3><p class="fine">Можно жать сколько угодно. Баллы не меняются.</p><div class="toy-roads">${buttons}</div><p class="play-count ${pick === 'short' ? 'is-ready' : ''}">${note}</p></article>`;
+  const note = pick === 'short' ? 'Ура, сумма меньше — курьер первый!' : (pick ? 'Этот длиннее. Запусти другого.' : 'Кто добежит быстрее?');
+  const runner = `<div class="toy-run"><span class="toy-runner ${pick ? 'is-go' : ''} ${pick === 'short' ? 'is-fast' : ''}">🏃</span></div>`;
+  return `<article class="card toy"><h3>Запусти курьера</h3><p class="fine">${practice ? 'Сначала пример. Здесь баллы не снимают.' : 'Можно жать сколько угодно. Баллы не меняются.'}</p>${runner}<div class="toy-roads">${buttons}</div><p class="play-count ${pick === 'short' ? 'is-ready' : ''}">${note}</p>${next}</article>`;
 }
 
 function resultHtml(lesson) {
@@ -3285,9 +3311,17 @@ function handleAct(act, btn) {
     });
     return;
   }
+  if (act === 'teacher-show-login') {
+    state.teacherOn = false;
+    save();
+    render();
+    return;
+  }
   if (act === 'teacher-logout') {
     LabCloud.teacherLogout().then(() => {
+      state.teacherOn = false;
       toast('Вход учителя закрыт. Этот телефон снова может отправлять баллы ученика.');
+      save();
       publishProgress();
       render();
     }).catch((error) => toast(teacherErrorText(error)));
@@ -3332,6 +3366,9 @@ function handleAct(act, btn) {
           pack.push({ name, error: teacherErrorText(error) });
         }
       }
+      state.teacherOn = true;
+      save();
+      render();
       lastJournalPack = pack;
       paintLoadedJournal('', true);
     }).catch((error) => {
@@ -3386,13 +3423,19 @@ function handleAct(act, btn) {
   }
   const lesson = activeLesson();
   if (act === 'toy-goal' || act === 'toy-branch' || act === 'toy-road') {
-    if (!lesson || lesson.phase !== 'done') return;
+    if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer')) return;
     if (!lesson.toy) lesson.toy = {};
     if (act === 'toy-goal') lesson.toy.goal = btn.dataset.goal === 'look' ? 'look' : 'fuel';
     if (act === 'toy-branch') lesson.toy.branch = btn.dataset.branch === 'no' ? 'no' : 'yes';
     if (act === 'toy-road') lesson.toy.road = btn.dataset.road;
     save();
     render();
+    return;
+  }
+  if (act === 'demo-done' && lesson && lesson.phase === 'trainer' && lesson.trainer) {
+    lesson.trainer.demoSeen = true;
+    save();
+    render({ toTop: true });
     return;
   }
   if (!lesson || lesson.phase === 'done') return;
@@ -3623,6 +3666,7 @@ function markFocusLoss() {
   Object.keys(state.lessons).forEach((key) => {
     const lesson = state.lessons[key];
     if (!lesson || (lesson.phase !== 'trainer' && lesson.phase !== 'blitz')) return;
+    if (lesson.phase === 'trainer' && atDemo(lesson)) return;
     if (!lesson.cheatArmedAt || now - lesson.cheatArmedAt < 800) return;
     lesson.focusLostCount = (lesson.focusLostCount || 0) + 1;
     count = Math.max(count, lesson.focusLostCount);
@@ -3713,7 +3757,7 @@ function boot() {
   document.body.addEventListener('input', (event) => {
     if (event.target.dataset.toySpeed) {
       const lesson = activeLesson();
-      if (!lesson || lesson.phase !== 'done') return;
+      if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer')) return;
       const speed = Number(event.target.value);
       if (!lesson.toy) lesson.toy = {};
       lesson.toy.speed = speed;

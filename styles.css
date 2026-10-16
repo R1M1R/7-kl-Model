@@ -475,6 +475,11 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .toy-road { display: flex; justify-content: space-between; gap: 8px; }
 .toy-road.is-on { border-color: var(--amber); }
 .toy-road.is-win { color: #041018; background: var(--good); border-color: transparent; }
+.toy-run { position: relative; height: 56px; margin: 8px 0 12px; border-radius: 16px; background: linear-gradient(90deg, #16324f, #245c45); overflow: hidden; }
+.toy-runner { position: absolute; left: 4px; top: 8px; font-size: 1.8rem; }
+.toy-runner.is-go { animation: toy-run 1.5s linear forwards; }
+.toy-runner.is-fast { animation-duration: 0.65s; }
+@keyframes toy-run { to { left: calc(100% - 2.2rem); } }
 .matrix-fit td.gap { color: var(--muted); }
 .matrix th, .matrix td { border: 1px solid var(--line); padding: 4px; text-align: center; }
 .matrix .bare-input { min-height: 44px; padding: 8px 4px; font-size: 0.78rem; }
