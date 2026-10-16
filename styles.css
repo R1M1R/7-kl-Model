@@ -462,6 +462,19 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .matrix-fit { width: 100%; }
 .matrix-fit th, .matrix-fit td { padding: 8px 2px; }
 .matrix-fit td.km { color: #041018; font-weight: 800; font-size: 1rem; background: #ffc14d; }
+.toy { border-top: 4px solid var(--amber); }
+.toy-object { margin: 10px 0; font-size: 1.6rem; font-weight: 800; }
+.toy-traits, .toy-roads { display: grid; gap: 8px; }
+.toy-chip { padding: 10px 12px; border-radius: 14px; background: #0d1a30; color: var(--muted); font-weight: 800; }
+.toy-chip.is-on { color: #041018; background: var(--amber); }
+.toy-sky { position: relative; height: 72px; margin: 8px 0; border-radius: 16px; background: linear-gradient(180deg, #16324f, #0d1a30); overflow: hidden; }
+.toy-plane { position: absolute; top: 18px; font-size: 1.8rem; transition: left 0.25s ease; }
+.toy-mood { margin: 8px 0; padding: 14px; border-radius: 16px; font-size: 1.15rem; font-weight: 800; background: #0d1a30; }
+.toy-mood.is-cold { color: #041018; background: #3de0ff; }
+.toy-mood.is-warm { color: #041018; background: #ffc14d; }
+.toy-road { display: flex; justify-content: space-between; gap: 8px; }
+.toy-road.is-on { border-color: var(--amber); }
+.toy-road.is-win { color: #041018; background: var(--good); border-color: transparent; }
 .matrix-fit td.gap { color: var(--muted); }
 .matrix th, .matrix td { border: 1px solid var(--line); padding: 4px; text-align: center; }
 .matrix .bare-input { min-height: 44px; padding: 8px 4px; font-size: 0.78rem; }

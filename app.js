@@ -2541,6 +2541,43 @@ function blitzHtml(lesson) {
   return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Вопрос ${blitz.index + 1} из 4">${dots}</div><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
 }
 
+function toyHtml(lesson) {
+  if (!lesson.toy) lesson.toy = {};
+  if (lesson.n === 1) {
+    const goal = lesson.toy.goal === 'look' ? 'look' : 'fuel';
+    const traits = [
+      ['Расход топлива', 'fuel'],
+      ['Масса', 'fuel'],
+      ['Скорость', 'fuel'],
+      ['Цвет кузова', 'look'],
+      ['Форма фар', 'look'],
+      ['Рисунок на чехлах', 'look']
+    ];
+    const chips = traits.map((trait) => `<span class="toy-chip ${trait[1] === goal ? 'is-on' : ''}">${trait[0]}</span>`).join('');
+    return `<article class="card toy"><h3>Покрути цель</h3><p class="fine">Баллы не меняются. Цель другая — горят другие признаки.</p><div class="btn-row"><button class="btn ${goal === 'fuel' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-goal" data-goal="fuel">Расход топлива</button><button class="btn ${goal === 'look' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-goal" data-goal="look">Внешний вид</button></div><p class="toy-object">Машина</p><div class="toy-traits">${chips}</div><p class="play-count is-ready">${goal === 'fuel' ? 'Для расхода нужны числа.' : 'Для вида нужны цвет и форма.'}</p></article>`;
+  }
+  if (lesson.n === 2) {
+    const speed = lesson.toy.speed || 40;
+    return `<article class="card toy"><h3>Покрути дрон</h3><p class="fine">Два часа полёта. Баллы не меняются.</p><div class="toy-sky"><span class="toy-plane" style="left:${(speed - 10) / 70 * 100}%">✈</span></div><p class="live-model is-ready" data-toy-formula>S = ${speed} · 2 = ${speed * 2} км</p><div class="slider-row"><div class="slider-head"><span>Скорость, км/ч</span><b data-toy-speed-label>${speed}</b></div><input type="range" min="10" max="80" step="10" value="${speed}" data-toy-speed="1"></div></article>`;
+  }
+  if (lesson.n === 3) {
+    const branch = lesson.toy.branch;
+    const mood = branch === 'yes'
+      ? '<p class="toy-mood is-cold">Класс остывает. Сработала ветка «да».</p>'
+      : (branch === 'no' ? '<p class="toy-mood is-warm">В классе тепло. Сработала ветка «нет».</p>' : '<p class="toy-mood">Нажми условие в ромбе.</p>');
+    return `<article class="card toy"><h3>Нажми условие</h3><p class="fine">Если жарко — охлаждение. Баллы не меняются.</p>${mood}<div class="btn-row"><button class="btn ${branch === 'yes' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-branch" data-branch="yes">Да, жарко</button><button class="btn ${branch === 'no' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-branch" data-branch="no">Нет, нормально</button></div></article>`;
+  }
+  const roads = [
+    ['short', 'Дом → Парк → Стадион', 9],
+    ['mid', 'Дом → Школа → Стадион', 14],
+    ['long', 'Дом → Библиотека → Стадион', 18]
+  ];
+  const pick = lesson.toy.road;
+  const buttons = roads.map((road) => `<button class="btn toy-road ${pick === road[0] ? 'is-on' : ''} ${pick === road[0] && road[0] === 'short' ? 'is-win' : ''}" type="button" data-act="toy-road" data-road="${road[0]}"><span>${road[1]}</span><b>${road[2]} км</b></button>`).join('');
+  const note = pick === 'short' ? 'Сумма меньше — путь короче.' : (pick ? 'Этот длиннее. Нажми другой.' : 'Кто добежит быстрее?');
+  return `<article class="card toy"><h3>Запусти курьера</h3><p class="fine">Можно жать сколько угодно. Баллы не меняются.</p><div class="toy-roads">${buttons}</div><p class="play-count ${pick === 'short' ? 'is-ready' : ''}">${note}</p></article>`;
+}
+
 function resultHtml(lesson) {
   const mission = MISSIONS[lesson.n];
   return `<article class="card result-hero mission" style="--accent:${mission.hue}">${wmLayer()}<div class="content big-grade">
@@ -2552,6 +2589,7 @@ function resultHtml(lesson) {
       <p>${lesson.total} из 100</p>
       <p class="fine">Баллы уже уходят учителю сами. Код ниже — для сверки, его не нужно диктовать одноклассникам.</p>
     </div></article>
+    ${toyHtml(lesson)}
     <article class="card"><table class="breakdown">
       <tr><td>Теория</td><td>${lesson.theoryScore}/15</td></tr>
       <tr><td>Тренажёр</td><td>${lesson.trainerScore}/45</td></tr>
@@ -3347,6 +3385,16 @@ function handleAct(act, btn) {
     return;
   }
   const lesson = activeLesson();
+  if (act === 'toy-goal' || act === 'toy-branch' || act === 'toy-road') {
+    if (!lesson || lesson.phase !== 'done') return;
+    if (!lesson.toy) lesson.toy = {};
+    if (act === 'toy-goal') lesson.toy.goal = btn.dataset.goal === 'look' ? 'look' : 'fuel';
+    if (act === 'toy-branch') lesson.toy.branch = btn.dataset.branch === 'no' ? 'no' : 'yes';
+    if (act === 'toy-road') lesson.toy.road = btn.dataset.road;
+    save();
+    render();
+    return;
+  }
   if (!lesson || lesson.phase === 'done') return;
   if (act === 'start-lesson' && lesson.phase === 'goal') {
     lesson.phase = 'theory';
@@ -3663,6 +3711,21 @@ function boot() {
     handleAct(button.dataset.act, button);
   });
   document.body.addEventListener('input', (event) => {
+    if (event.target.dataset.toySpeed) {
+      const lesson = activeLesson();
+      if (!lesson || lesson.phase !== 'done') return;
+      const speed = Number(event.target.value);
+      if (!lesson.toy) lesson.toy = {};
+      lesson.toy.speed = speed;
+      const label = document.querySelector('[data-toy-speed-label]');
+      if (label) label.textContent = String(speed);
+      const plane = document.querySelector('.toy-plane');
+      if (plane) plane.style.left = ((speed - 10) / 70 * 100) + '%';
+      const formula = document.querySelector('[data-toy-formula]');
+      if (formula) formula.textContent = 'S = ' + speed + ' · 2 = ' + (speed * 2) + ' км';
+      save();
+      return;
+    }
     const slider = event.target.dataset.slider;
     if (slider) {
       const lesson = activeLesson();
