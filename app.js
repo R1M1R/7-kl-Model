@@ -2222,7 +2222,7 @@ function trainer2(lesson) {
   const scenario = lesson.trainer.scenario;
   if (lesson.trainer.stage === 'formula') {
     const buttons = scenario.formulas.map((formula, index) => `<button class="btn choice ${scenario.formulaPick === index ? 'is-on' : ''}" type="button" data-act="formula-pick" data-i="${index}">${esc(formula.text)}</button>`).join('');
-    return `<article class="card no-cheat"><h3>Какая формула?</h3><p>${esc(scenario.story)}</p><p class="fine">Одна формула описывает задачу. Остальные смешивают разные величины.</p>${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
+    return `<article class="card no-cheat"><h3>Какая формула?</h3><p>${esc(scenario.story)}</p><p class="play-count ${scenario.formulaPick == null ? '' : 'is-ready'}">${scenario.formulaPick == null ? 'Формула не выбрана' : 'Формула выбрана'}</p>${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
   }
   const sliders = Object.keys(scenario.sliders).map((key) => {
     const slider = scenario.sliders[key];
@@ -2322,6 +2322,11 @@ function roadSvg(graph) {
   return `<svg class="road" viewBox="0 0 340 250" role="img" aria-label="Граф дорог">${lines}${nodes}</svg>`;
 }
 
+function routeSum(graph) {
+  const picked = graph.route || [];
+  return graph.edges.reduce((sum, edge) => sum + (picked.indexOf(edge.id) >= 0 ? edge.w : 0), 0);
+}
+
 function trainer4(lesson) {
   const graph = lesson.trainer.graph;
   const table = graphTable(graph);
@@ -2339,7 +2344,12 @@ function trainer4(lesson) {
     return `<article class="card"><h3>Веса сданы</h3><p>Сверьте каждую дорогу. Баллы уже учтены, повторно сдать нельзя.</p>${lines}<button class="btn btn-primary" type="button" data-act="path-start">Искать маршрут</button></article>`;
   }
   if (lesson.trainer.stage === 'path') {
-    return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3><p class="fine">Дом → ${esc(graph.names[graph.via])} → Стадион. Сложи километры дорог, не бери длину одного ребра.</p>${roadSvg(graph)}${table}<label class="field">Длина всего пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
+    if (!graph.route) graph.route = [];
+    const picks = graph.edges.map((edge) => {
+      const on = graph.route.indexOf(edge.id) >= 0;
+      return `<button class="btn chip ${on ? 'is-on' : ''}" type="button" data-act="route-toggle" data-id="${edge.id}">${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])} · ${edge.w} км</button>`;
+    }).join('');
+    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="fine">Дом → ${esc(graph.names[graph.via])} → Стадион. Включай дороги, сумма считается сама.</p><p class="play-count ${graph.route.length ? 'is-ready' : ''}">Сумма: ${routeSum(graph)} км</p>${roadSvg(graph)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать сумму</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   const wrote = graph.pathGiven;
@@ -2362,10 +2372,11 @@ function blitzHtml(lesson) {
   const graph = question.graph ? `<canvas class="plot" data-plot="${esc(JSON.stringify(question.graph))}"></canvas>` : '';
   const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е'];
   const mission = MISSIONS[lesson.n];
+  const dots = [0, 1, 2, 3].map((index) => `<i class="${index < blitz.index ? 'is-done' : ''} ${index === blitz.index ? 'is-now' : ''}"></i>`).join('');
   const answers = question.type === 'choice'
     ? question.options.map((option, index) => `<button class="btn choice" type="button" data-act="blitz-pick" data-i="${index}"><span class="choice-letter">${letters[index] || index + 1}</span><span>${esc(option)}</span></button>`).join('')
     : `<label class="field">Целое число<input id="blitz-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="blitz-num">Сдать число</button>`;
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Вопрос ${blitz.index + 1} из 4">${dots}</div><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
 }
 
 function resultHtml(lesson) {
@@ -2896,14 +2907,14 @@ function actConfirm(name) {
     });
   }
   if (name === 'path-submit') {
-    const parsed = readInt('path-len');
-    if (!parsed.ok) { toast('Введите длину целым числом.'); return; }
     if (!lesson.trainer.graph || lesson.trainer.graph.pathSubmitted) return;
-    confirmModal('Сдать длину маршрута?', 'Попытка одна.', () => {
+    if (!lesson.trainer.graph.route || !lesson.trainer.graph.route.length) { toast('Включи дороги своего маршрута.'); return; }
+    const sum = routeSum(lesson.trainer.graph);
+    confirmModal('Сдать сумму ' + sum + ' км?', 'Попытка одна.', () => {
       if (lesson.trainer.graph.pathSubmitted) return;
       const best = shortestVia(buildAdj(lesson.trainer.graph.edges), 'A', lesson.trainer.graph.via, 'E');
-      if (!best || parsed.value !== best.len) addTrainerError(lesson, 1);
-      lesson.trainer.graph.pathGiven = parsed.value;
+      if (!best || sum !== best.len) addTrainerError(lesson, 1);
+      lesson.trainer.graph.pathGiven = sum;
       lesson.trainer.graph.pathSubmitted = true;
       lesson.trainer.stage = 'path-review';
       save();
@@ -3262,6 +3273,16 @@ function handleAct(act, btn) {
   }
   if (act === 'trace-pick' && !lesson.trainer.algo.traceLocked) {
     lesson.trainer.algo.tracePick = Number(btn.dataset.i);
+    save();
+    render();
+    return;
+  }
+  if (act === 'route-toggle' && lesson.trainer.graph && !lesson.trainer.graph.pathSubmitted && lesson.trainer.stage === 'path') {
+    if (!lesson.trainer.graph.route) lesson.trainer.graph.route = [];
+    const id = btn.dataset.id;
+    const at = lesson.trainer.graph.route.indexOf(id);
+    if (at >= 0) lesson.trainer.graph.route.splice(at, 1);
+    else lesson.trainer.graph.route.push(id);
     save();
     render();
     return;
