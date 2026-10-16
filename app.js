@@ -1738,10 +1738,23 @@ function gapLine(rows) {
   const parts = [1, 2, 3, 4].map((n) => {
     const missing = missingRows(rows, n);
     if (!missing.length) return '';
-    const names = missing.map((row) => `${row.lastName} ${row.firstName}`).join(', ');
-    return `Урок ${n} не сдали (${missing.length}): ${names}`;
+    const byGroup = {};
+    missing.forEach((row) => {
+      const group = String(row.groupId || '–');
+      if (!byGroup[group]) byGroup[group] = [];
+      byGroup[group].push(`${row.lastName} ${row.firstName}`);
+    });
+    const groups = Object.keys(byGroup).sort().map((group) => `гр. ${group}: ${byGroup[group].join(', ')}`).join('; ');
+    return `Урок ${n} не сдали (${missing.length}). ${groups}`;
   }).filter(Boolean);
   return parts.length ? parts.join('\n') : 'Среди приславших все четыре урока сданы.';
+}
+
+function openGaps(rows) {
+  return (rows || []).filter((row) => [1, 2, 3, 4].some((n) => {
+    const lesson = lessonByNumber(row, n);
+    return !lesson || !lesson.done;
+  })).length;
 }
 
 function gapBlocks(rows) {
@@ -2803,6 +2816,11 @@ function handleAct(act, btn) {
     return;
   }
   if (act === 'copy-code') { copyText(btn.dataset.code || ''); return; }
+  if (act === 'jump-journal') {
+    const target = document.getElementById(btn.dataset.id || '');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   if (act === 'copy-journal') {
     if (!lastJournalText) { toast('Сначала откройте журнал.'); return; }
     copyText(lastJournalText);
@@ -2929,23 +2947,29 @@ function handleAct(act, btn) {
       }
       const blocks = [];
       const sheets = [];
+      const index = [];
       for (const name of (act === 'teacher-claim-all' ? parallelClassNames() : names)) {
+        const anchor = 'journal-' + name;
         try {
           const result = await LabCloud.teacherJournal(roomFromClass(name));
           const role = result.access.role === 'master'
             ? 'ведущий, все группы'
             : (result.access.role === 'teacher' ? 'группы ' + result.access.groups.join(', ') : 'нет доступа');
-          blocks.push(`<section class="subcard"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
+          const gaps = openGaps(result.rows);
+          blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
           sheets.push(journalTsv(name, result.rows));
+          index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(name)}<small>${result.rows.length} · пробелы ${gaps}</small></button>`);
         } catch (error) {
           const text = teacherErrorText(error);
-          blocks.push(`<section class="subcard"><h3>${esc(name)}</h3><p class="field-error">${esc(text)}</p></section>`);
+          blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(name)}</h3><p class="field-error">${esc(text)}</p></section>`);
           sheets.push(name + '\n' + text);
+          index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(name)}<small>ошибка</small></button>`);
         }
       }
       lastJournalText = sheets.join('\n\n');
+      const menu = names.length > 1 ? `<div class="parallel-index">${index.join('')}</div>` : '';
       const node = $('journal-out');
-      if (node) node.innerHTML = '<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>' + blocks.join('');
+      if (node) node.innerHTML = menu + '<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>' + blocks.join('');
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
