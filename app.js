@@ -1815,8 +1815,13 @@ function paintLoadedJournal(group) {
   const blocks = [];
   const sheets = [];
   const index = [];
+  const quiet = [];
   lastJournalPack.forEach((item) => {
     const anchor = 'journal-' + item.name;
+    if (!item.error && group && !rowsForGroup(item.result.rows, group).length) {
+      quiet.push(item.name);
+      return;
+    }
     if (item.error) {
       blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)}</h3><p class="field-error">${esc(item.error)}</p></section>`);
       sheets.push(item.name + '\n' + item.error);
@@ -1832,16 +1837,18 @@ function paintLoadedJournal(group) {
     sheets.push(journalTsv(item.name + (group ? ' группа ' + group : ''), rows));
     index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(item.name)}<small>${rows.length} · пробелы ${gaps}</small></button>`);
   });
+  if (group && quiet.length) sheets.unshift('В группе ' + group + ' нет работ: ' + quiet.join(', '));
   lastJournalText = sheets.join('\n\n');
   const filters = ['', '1', '2', '3'].map((id) => {
     const on = String(group || '') === id;
     const label = id ? 'Группа ' + id : 'Все группы';
     return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="journal-group" data-group="${id}">${label}</button>`;
   }).join('');
-  const menu = lastJournalPack.length > 1 ? `<div class="parallel-index">${index.join('')}</div>` : '';
+  const menu = index.length > 1 ? `<div class="parallel-index">${index.join('')}</div>` : '';
+  const quietLine = group && quiet.length ? `<p class="fine">В группе ${esc(group)} пока нет работ: ${esc(quiet.join(', '))}.</p>` : '';
   const node = $('journal-out');
   if (node) {
-    node.innerHTML = `<div class="group-picks">${filters}</div>${menu}<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>${blocks.join('')}`;
+    node.innerHTML = `<div class="group-picks">${filters}</div>${quietLine}${menu}<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>${blocks.join('')}`;
   }
 }
 
