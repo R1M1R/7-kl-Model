@@ -2131,6 +2131,36 @@ function trainerHtml(lesson) {
   return bank + trainer4(lesson);
 }
 
+function classifyHtml(trainer) {
+  const items = trainer.items;
+  const answers = trainer.answers;
+  const locked = trainer.classSubmitted;
+  const sorted = items.filter((item) => answers[item.id]).length;
+  const wrong = locked ? items.filter((item) => answers[item.id] !== item.type) : [];
+  function pile(type, title) {
+    const cards = items.filter((item) => answers[item.id] === type).map((item) => {
+      if (!locked) return `<button class="btn chip" type="button" data-act="cls-return" data-id="${item.id}">${esc(item.text)}</button>`;
+      const ok = item.type === type;
+      return `<span class="bin-chip ${ok ? 'is-ok' : 'is-no'}">${esc(item.text)}</span>`;
+    }).join('');
+    return `<div class="sort-bin"><h4>${title}</h4>${cards || '<p class="fine">Пока пусто</p>'}</div>`;
+  }
+  const current = locked ? null : items.find((item) => !answers[item.id]);
+  const deck = current
+    ? `<div class="sort-card"><p>${esc(current.text)}</p><div class="btn-row"><button class="btn btn-primary" type="button" data-act="cls-pick" data-id="${current.id}" data-type="mat">Можно потрогать</button><button class="btn btn-ghost" type="button" data-act="cls-pick" data-id="${current.id}" data-type="inf">Только знаки</button></div></div>`
+    : '';
+  const review = !locked ? '' : (wrong.length
+    ? wrong.map((item) => `<p class="warn-text">${esc(item.text)} — верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}.</p>`).join('')
+    : '<p class="ok-text">Все карточки в своих стопках.</p>');
+  const action = locked
+    ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
+    : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать стопки</button>';
+  const count = locked ? `Ошибок: ${wrong.length}` : `Разобрано ${sorted} из ${items.length}`;
+  const ready = locked ? wrong.length === 0 : sorted === items.length;
+  const back = !locked && sorted ? '<p class="fine">Нажми карточку в стопке, если хочешь вернуть её.</p>' : '';
+  return `<article class="card no-cheat"><h3>Разложи модели</h3><p class="play-count ${ready ? 'is-ready' : ''}">${count}</p>${deck}${back}<div class="sort-bins">${pile('mat', 'Материальная')}${pile('inf', 'Информационная')}</div>${review}${action}</article>`;
+}
+
 function trainer1(lesson) {
   const trainer = lesson.trainer;
   if (trainer.stage === 'features' || trainer.stage === 'features-review') {
@@ -2150,15 +2180,7 @@ function trainer1(lesson) {
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
     return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}</p><div class="grid-2">${chips}</div>${action}</article>`;
   }
-  const cards = trainer.items.map((item) => `<div class="model-pick"><p>${esc(item.text)}</p><div class="btn-row">
-      <button class="btn ${trainer.answers[item.id] === 'mat' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="mat" ${trainer.classSubmitted ? 'disabled' : ''}>Материальная</button>
-      <button class="btn ${trainer.answers[item.id] === 'inf' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="inf" ${trainer.classSubmitted ? 'disabled' : ''}>Информационная</button>
-    </div>${trainer.classSubmitted ? `<p class="${trainer.answers[item.id] === item.type ? 'ok-text' : 'warn-text'}">Вы выбрали: ${trainer.answers[item.id] === 'mat' ? 'материальная' : 'информационная'}. Верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}.</p>` : ''}</div>`).join('');
-  const sortedCount = trainer.items.filter((item) => trainer.answers[item.id]).length;
-  const action = trainer.classSubmitted
-    ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
-    : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать классификацию</button>';
-  return `<article class="card no-cheat"><h3>Классификатор моделей</h3><p class="play-count ${sortedCount === trainer.items.length ? 'is-ready' : ''}">Разобрано ${sortedCount} из ${trainer.items.length}</p><p class="fine">Можно потрогать — материальная. Только знаки — информационная.</p></article>${cards}${action}`;
+  return classifyHtml(trainer);
 }
 
 function niceCeil(value) {
@@ -3306,6 +3328,12 @@ function handleAct(act, btn) {
   }
   if (act === 'cls-pick' && !lesson.trainer.classSubmitted) {
     lesson.trainer.answers[btn.dataset.id] = btn.dataset.type;
+    save();
+    render();
+    return;
+  }
+  if (act === 'cls-return' && lesson.trainer.items && !lesson.trainer.classSubmitted) {
+    delete lesson.trainer.answers[btn.dataset.id];
     save();
     render();
     return;
