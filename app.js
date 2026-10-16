@@ -2124,6 +2124,10 @@ function nowNext(now, next) {
   return `<div class="now-next"><p><b>Сейчас</b> ${esc(now)}</p><p><b>Дальше</b> ${esc(next)}</p></div>`;
 }
 
+function exampleBox(text) {
+  return `<div class="example-box"><span>Сначала пример</span><p>${esc(text)}</p></div>`;
+}
+
 function trainerHtml(lesson) {
   const bank = `<p class="formula">Банк практики: ${Math.max(0, 45 - 10 * lesson.trainer.errors)} из 45. Ошибка снимает 10, сдать можно один раз.</p>`;
   if (lesson.n === 1) return bank + trainer1(lesson);
@@ -2144,7 +2148,7 @@ function trainer1(lesson) {
     const action = trainer.task.submitted
       ? `<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Зелёным отмечены существенные признаки.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
-    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div>${nowNext('Отметьте только признаки, без которых цель не решить.', 'Сдайте выбор. Лишний или пропущенный признак — ошибка.')}<div class="grid-2">${chips}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div>${nowNext('Отметьте только признаки, без которых цель не решить.', 'Сдайте выбор. Лишний или пропущенный признак — ошибка.')}${exampleBox('Для расхода топлива масса самолёта нужна, а цвет фюзеляжа — нет.')}<div class="grid-2">${chips}</div>${action}</article>`;
   }
   const cards = trainer.items.map((item) => `<div class="model-pick"><p>${esc(item.text)}</p><div class="btn-row">
       <button class="btn ${trainer.answers[item.id] === 'mat' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="mat" ${trainer.classSubmitted ? 'disabled' : ''}>Материальная</button>
@@ -2153,7 +2157,7 @@ function trainer1(lesson) {
   const action = trainer.classSubmitted
     ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
     : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать классификацию</button>';
-  return `<article class="card no-cheat"><h3>Классификатор моделей</h3>${nowNext('У восьми примеров выберите: материальная или информационная модель.', 'Сдайте, когда у каждой карточки есть выбор. Ошибка снимает 10 из банка.')}</article>${cards}${action}`;
+  return `<article class="card no-cheat"><h3>Классификатор моделей</h3>${nowNext('У восьми примеров выберите: материальная или информационная модель.', 'Сдайте, когда у каждой карточки есть выбор. Ошибка снимает 10 из банка.')}${exampleBox('Глобус можно потрогать — это материальная модель. Расписание уроков состоит из знаков — информационная.')}</article>${cards}${action}`;
 }
 
 function niceCeil(value) {
@@ -2183,7 +2187,7 @@ function trainer2(lesson) {
   const scenario = lesson.trainer.scenario;
   if (lesson.trainer.stage === 'formula') {
     const buttons = scenario.formulas.map((formula, index) => `<button class="btn choice ${scenario.formulaPick === index ? 'is-on' : ''}" type="button" data-act="formula-pick" data-i="${index}">${esc(formula.text)}</button>`).join('');
-    return `<article class="card no-cheat"><h3>Лаборатория формул</h3><p>${esc(scenario.story)}</p>${nowNext('Выберите формулу, которая описывает эту задачу.', 'Сдайте один раз. Неверная формула снимает 10.')}${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
+    return `<article class="card no-cheat"><h3>Лаборатория формул</h3><p>${esc(scenario.story)}</p>${nowNext('Выберите формулу, которая описывает эту задачу.', 'Сдайте один раз. Неверная формула снимает 10.')}${exampleBox('Путь при постоянной скорости: S = v·t. Если v = 60 км/ч и t = 2 ч, то S = 120 км.')}${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
   }
   const sliders = Object.keys(scenario.sliders).map((key) => {
     const slider = scenario.sliders[key];
@@ -2192,10 +2196,10 @@ function trainer2(lesson) {
   const canvas = `<canvas class="plot" data-plot-live="1" data-ymax="${plotSpec(scenario).yMax}"></canvas>`;
   if (lesson.trainer.stage === 'calc') {
     const correct = scenario.formulas.find((formula) => formula.ok).text;
-    return `<article class="card no-cheat"><h3>График и расчёт</h3><p>${esc(scenario.story)}</p>${nowNext('Поставьте ползунки по условию и впишите число по формуле.', 'Пустое поле попытку не тратит. Верх шкалы — не ответ.')}<p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">Рабочая формула: ${esc(correct)}</p><label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать расчёт</button>${canvas}${sliders}</article>`;
+    return `<article class="card no-cheat"><h3>График и расчёт</h3><p>${esc(scenario.story)}</p>${nowNext('Поставьте ползунки по условию и впишите число по формуле.', 'Пустое поле попытку не тратит. Верх шкалы — не ответ.')}${exampleBox('Если ответ 120, а шкала сверху подписана 150, в поле пишут 120. Верхняя подпись только рисует график.')}<p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">Рабочая формула: ${esc(correct)}</p><label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать расчёт</button>${canvas}${sliders}</article>`;
   }
   if (lesson.trainer.stage === 'extra') {
-    return `<article class="card no-cheat"><h3>Промежуточная величина</h3><p>${esc(scenario.story)}</p>${nowNext('Найдите величину, которая нужна для основного ответа.', 'Сдайте число. Пустое поле попытку не тратит.')}<label class="field">${esc(scenario.extraAsk)}<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать величину</button>${canvas}${sliders}</article>`;
+    return `<article class="card no-cheat"><h3>Промежуточная величина</h3><p>${esc(scenario.story)}</p>${nowNext('Найдите величину, которая нужна для основного ответа.', 'Сдайте число. Пустое поле попытку не тратит.')}${exampleBox('Встречный ветер 10 км/ч при скорости 60 км/ч даёт путевую скорость 50 км/ч. Складывать скорость, ветер и время нельзя.')}<label class="field">${esc(scenario.extraAsk)}<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать величину</button>${canvas}${sliders}</article>`;
   }
   return `<article class="card"><h3>Тренажёр завершён</h3><p>Основной ответ: ${scenario.mainAnswer}. Промежуточный: ${scenario.extraAnswer}.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
@@ -2232,14 +2236,14 @@ function trainer3(lesson) {
     const action = algo.orderLocked
       ? `<p>Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
-    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p>${nowNext('Нажмите блок: он встанет в первый свободный шаг. Занятый шаг возвращает блок назад.', 'После ромба сначала «да», потом «нет». Затем сдайте порядок.')}${bank}<div class="flow">${slots}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p>${nowNext('Нажмите блок: он встанет в первый свободный шаг. Занятый шаг возвращает блок назад.', 'После ромба сначала «да», потом «нет». Затем сдайте порядок.')}${exampleBox('Овал — начало и конец. Параллелограмм — ввод. Ромб — вопрос «да или нет». Прямоугольник — действие.')}${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
   const correctList = algo.correct.map((id) => `<div class="btn block-item">${shapeHtml(byIdMap[id].shape)}<span>${esc(byIdMap[id].text)}</span></div>`).join('');
   if (!algo.traceLocked) {
     const chooser = algo.challenge.type === 'choice'
       ? algo.challenge.options.map((option, index) => `<button class="btn choice ${algo.tracePick === index ? 'is-on' : ''}" type="button" data-act="trace-pick" data-i="${index}">${esc(option)}</button>`).join('')
       : `<label class="field">Ответ<input id="trace-num" inputmode="numeric" autocomplete="off"></label>`;
-    return `<article class="card no-cheat"><h3>Трассировка верной схемы</h3>${nowNext('Пройдите схему сверху вниз и ответьте на вопрос.', 'Сдайте один раз.')}${correctList}<p>${esc(algo.challenge.text)}</p>${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать трассировку</button></article>`;
+    return `<article class="card no-cheat"><h3>Трассировка верной схемы</h3>${nowNext('Пройдите схему сверху вниз и ответьте на вопрос.', 'Сдайте один раз.')}${exampleBox('Если условие в ромбе истинно, выполняется только ветка «да». Ветка «нет» в этот проход молчит.')}${correctList}<p>${esc(algo.challenge.text)}</p>${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать трассировку</button></article>`;
   }
   return `<article class="card"><h3>Трассировка сдана</h3><p>${esc(algo.challenge.explain)}</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
@@ -2275,7 +2279,7 @@ function trainer4(lesson) {
   const table = graphTable(graph);
   if (lesson.trainer.stage === 'edges') {
     const rows = graph.edges.map((edge) => `<label class="edge-row"><span>${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}</span><input class="bare-input" inputmode="numeric" data-edge="${edge.id}" value="${esc(graph.draft[edge.id] || '')}" placeholder="км"></label>`).join('');
-    return `<article class="card no-cheat"><h3>Схема дорог</h3>${nowNext('Перенесите километры из списка в поля у каждой дороги.', 'Пустое поле попытку не тратит. Неверный вес снимает 10.')}${roadSvg(graph)}${table}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
+    return `<article class="card no-cheat"><h3>Схема дорог</h3>${nowNext('Перенесите километры из списка в поля у каждой дороги.', 'Пустое поле попытку не тратит. Неверный вес снимает 10.')}${exampleBox('Если в списке «Дом — Школа: 5 км», в поле этой же дороги пишут 5, а не длину соседней дороги.')}${roadSvg(graph)}${table}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
     let wrong = 0;
@@ -2283,7 +2287,7 @@ function trainer4(lesson) {
     return `<article class="card"><h3>Веса сданы</h3><p>Неверных рёбер: ${wrong}.</p><button class="btn btn-primary" type="button" data-act="path-start">Искать маршрут</button></article>`;
   }
   if (lesson.trainer.stage === 'path') {
-    return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3>${nowNext('От «Дома» до «Стадиона» через «' + graph.names[graph.via] + '». Сложите километры по дорогам.', 'Сдайте одну длину всего пути, не длину одного ребра.')}${roadSvg(graph)}${table}<label class="field">Длина всего пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
+    return `<article class="card no-cheat"><h3>Кратчайший маршрут</h3>${nowNext('От «Дома» до «Стадиона» через «' + graph.names[graph.via] + '». Сложите километры по дорогам.', 'Сдайте одну длину всего пути, не длину одного ребра.')}${exampleBox('Маршрут 4 км + 6 км длиннее маршрута 3 км + 3 км: сравнивают суммы, 10 и 6, а не красоту линии.')}${roadSvg(graph)}${table}<label class="field">Длина всего пути, км<input id="path-len" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать длину</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   return `<article class="card"><h3>Маршрут проверен</h3><p>${esc(best.path.map((id) => graph.names[id]).join(' → '))}. Длина ${best.len} км.</p><button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
