@@ -1546,10 +1546,16 @@ function renderLessons() {
   const points = xpTotal();
   const nextName = nextMission ? MISSIONS[nextMission].name : 'Все миссии пройдены';
   const width = Math.max(4, Math.round(points / 400 * 100));
+  const group = state.groupId === '2' ? '2' : '1';
   return `<p class="eyebrow">Игровое поле</p><h2 class="section-title">Привет, ${esc(state.student.firstName)}!</h2>
     <article class="card hero-rank">
       <p class="eyebrow">${esc(rankTitle(points))}</p>
-      <p class="lead">${points} из 400 · группа ${esc(state.groupId || '1')} · класс ${esc(state.student.className)}</p>
+      <p class="lead">${points} из 400 · класс ${esc(state.student.className)}</p>
+      <div class="group-picks">
+        <button class="btn ${group === '1' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="set-group" data-group="1">Группа 1</button>
+        <button class="btn ${group === '2' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="set-group" data-group="2">Группа 2</button>
+      </div>
+      <p class="fine">Светлая кнопка — ваша группа. Если учитель назвал другую, нажмите её.</p>
       <div class="xp-track" aria-hidden="true"><span style="width:${width}%"></span></div>
       <p class="fine">Дальше: ${esc(nextName)}</p>
       <p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p>
@@ -2906,6 +2912,16 @@ function handleAct(act, btn) {
     return;
   }
   if (act === 'verify') { runVerify(); return; }
+  if (act === 'set-group') {
+    const group = btn.dataset.group === '2' ? '2' : '1';
+    if (state.groupId === group) return;
+    state.groupId = group;
+    save();
+    toast(group === '2' ? 'Теперь вы в группе 2' : 'Теперь вы в группе 1');
+    publishProgress({ loud: true });
+    render();
+    return;
+  }
   if (act === 'save-room') {
     const picked = $('room-group') && $('room-group').value;
     const group = picked === '2' ? '2' : '1';
