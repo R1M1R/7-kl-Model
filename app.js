@@ -2148,16 +2148,17 @@ function trainer1(lesson) {
     const action = trainer.task.submitted
       ? `${featureWhy}<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Баллы уже учтены.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
-    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="fine">Жми только то, без чего эту цель не решить.</p><div class="grid-2">${chips}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}</p><div class="grid-2">${chips}</div>${action}</article>`;
   }
   const cards = trainer.items.map((item) => `<div class="model-pick"><p>${esc(item.text)}</p><div class="btn-row">
       <button class="btn ${trainer.answers[item.id] === 'mat' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="mat" ${trainer.classSubmitted ? 'disabled' : ''}>Материальная</button>
       <button class="btn ${trainer.answers[item.id] === 'inf' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="cls-pick" data-id="${item.id}" data-type="inf" ${trainer.classSubmitted ? 'disabled' : ''}>Информационная</button>
     </div>${trainer.classSubmitted ? `<p class="${trainer.answers[item.id] === item.type ? 'ok-text' : 'warn-text'}">Вы выбрали: ${trainer.answers[item.id] === 'mat' ? 'материальная' : 'информационная'}. Верно: ${item.type === 'mat' ? 'материальная' : 'информационная'}.</p>` : ''}</div>`).join('');
+  const sortedCount = trainer.items.filter((item) => trainer.answers[item.id]).length;
   const action = trainer.classSubmitted
     ? '<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button>'
     : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать классификацию</button>';
-  return `<article class="card no-cheat"><h3>Классификатор моделей</h3><p class="fine">Можно потрогать — материальная. Только знаки — информационная.</p></article>${cards}${action}`;
+  return `<article class="card no-cheat"><h3>Классификатор моделей</h3><p class="play-count ${sortedCount === trainer.items.length ? 'is-ready' : ''}">Разобрано ${sortedCount} из ${trainer.items.length}</p><p class="fine">Можно потрогать — материальная. Только знаки — информационная.</p></article>${cards}${action}`;
 }
 
 function niceCeil(value) {
@@ -2276,10 +2277,11 @@ function trainer3(lesson) {
       const yours = id && byIdMap[id] ? byIdMap[id].text : 'пусто';
       return `<p class="warn-text">Шаг ${index + 1}: вы поставили «${esc(yours)}», нужен «${esc(byIdMap[algo.correct[index]].text)}».</p>`;
     }).join('') : '';
+    const filledSlots = algo.slots.filter(Boolean).length;
     const action = algo.orderLocked
       ? `${fixes}<p class="ok-text">Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
-    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p><p class="fine">Нажми блок — он встанет в первый свободный шаг. После ромба сначала «да», потом «нет».</p>${bank}<div class="flow">${slots}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p><p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
   const correctList = algo.correct.map((id) => `<div class="btn block-item">${shapeHtml(byIdMap[id].shape)}<span>${esc(byIdMap[id].text)}</span></div>`).join('');
   if (!algo.traceLocked) {
@@ -2325,7 +2327,8 @@ function trainer4(lesson) {
   const table = graphTable(graph);
   if (lesson.trainer.stage === 'edges') {
     const rows = graph.edges.map((edge) => `<label class="edge-row"><span>${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}</span><input class="bare-input" inputmode="numeric" data-edge="${edge.id}" value="${esc(graph.draft[edge.id] || '')}" placeholder="км"></label>`).join('');
-    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="fine">Число из списка — в поле той же дороги. На схеме появится вес.</p>${roadSvg(graph)}${table}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
+    const filledRoads = graph.edges.filter((edge) => /^\d+$/.test(String(graph.draft[edge.id] || '').trim())).length;
+    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${table}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
     const lines = graph.edges.map((edge) => {
@@ -3485,6 +3488,12 @@ function boot() {
       lesson.trainer.graph.draft[event.target.dataset.edge] = event.target.value;
       const holder = document.querySelector('.road');
       if (holder) holder.outerHTML = roadSvg(lesson.trainer.graph);
+      const counter = document.querySelector('[data-edge-count]');
+      if (counter) {
+        const filled = lesson.trainer.graph.edges.filter((edge) => /^\d+$/.test(String(lesson.trainer.graph.draft[edge.id] || '').trim())).length;
+        counter.textContent = `Подписано ${filled} из ${lesson.trainer.graph.edges.length}`;
+        counter.classList.toggle('is-ready', filled === lesson.trainer.graph.edges.length);
+      }
       save();
     }
   });
