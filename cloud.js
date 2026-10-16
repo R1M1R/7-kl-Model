@@ -84,7 +84,7 @@
       return { ok: false, reason: 'Журнал класса ещё не подключён' };
     }
     const room = payload.roomId;
-    const groupId = String(payload.groupId || '1');
+    const groupId = String(payload.groupId) === '2' ? '2' : '1';
     const id = payload.studentId;
     await root().child(`users/${user.uid}`).update({ classId: room, groupId, role: 'student' });
     const previousGroup = payload.previousGroup ? String(payload.previousGroup) : '';
@@ -176,7 +176,7 @@
     const user = firebase.auth().currentUser;
     if (!user || user.isAnonymous) throw new Error('Сначала войдите почтой ведущего');
     const map = {};
-    groups.forEach((groupId) => { map[groupId] = true; });
+    groups.filter((groupId) => groupId === '1' || groupId === '2').forEach((groupId) => { map[groupId] = true; });
     await root().child(`classes/${roomId}/teachers/${teacherUid}`).set({
       groups: map,
       role: 'teacher',
@@ -192,7 +192,7 @@
     if (master.exists()) return { role: 'master', uid: user.uid, groups: ['1', '2'] };
     const teacher = await root().child(`classes/${roomId}/teachers/${user.uid}`).get();
     if (!teacher.exists()) return { role: 'none', uid: user.uid, groups: [] };
-    const groups = Object.keys((teacher.val() && teacher.val().groups) || {}).filter((id) => teacher.val().groups[id]);
+    const groups = Object.keys((teacher.val() && teacher.val().groups) || {}).filter((id) => (id === '1' || id === '2') && teacher.val().groups[id]);
     return { role: 'teacher', uid: user.uid, groups };
   }
 
