@@ -473,6 +473,11 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .live-model.is-ready { color: #041018; background: var(--good); }
 .road { width: 100%; height: auto; background: #0d1526; border-radius: 16px; border: 1px solid var(--line); }
 .road line { stroke: var(--accent, #8ea3c2); stroke-width: 3; }
+.road line.road-draw { stroke-width: 4; }
+.road line.road-draw.is-on { stroke: #3ee0a0; stroke-width: 7; }
+.road line.road-pad { stroke: rgba(255, 255, 255, 0.01); stroke-width: 22; }
+.road .road-hit { cursor: pointer; }
+.road circle.via { fill: none; stroke: #ffc14d; stroke-width: 3; }
 .road circle { stroke: #041018; stroke-width: 2; }
 .road text { fill: #e8f0fb; font-size: 11px; font-weight: 800; text-anchor: middle; }
 .road text.node { fill: #041018; font-size: 10px; }

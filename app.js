@@ -2308,23 +2308,64 @@ function graphTable(graph) {
   return `<ul class="road-list">${roads}</ul><details class="rules"><summary>Таблица расстояний</summary><p class="fine">Ту же схему можно сдвинуть пальцем вбок.</p><div class="table-wrap"><table class="matrix matrix-wide"><tr><th>км</th>${head}</tr>${rows}</table></div></details>`;
 }
 
-function roadSvg(graph) {
+function roadSvg(graph, pick) {
   const pos = { A: [58, 120], B: [128, 42], C: [168, 124], D: [128, 206], E: [286, 120] };
   const short = { A: 'Дом', B: 'Школа', C: 'Парк', D: 'Библ.', E: 'Стадион' };
   const lines = graph.edges.map((edge) => {
     const [x1, y1] = pos[edge.a];
     const [x2, y2] = pos[edge.b];
-    const label = graph.draft[edge.id] ? esc(graph.draft[edge.id]) : '?';
-    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line><text class="lab" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}">${label}</text>`;
+    const on = pick && (graph.route || []).indexOf(edge.id) >= 0;
+    const label = pick ? String(edge.w) : (graph.draft[edge.id] ? esc(graph.draft[edge.id]) : '?');
+    const draw = `<line class="road-draw${on ? ' is-on' : ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line><text class="lab" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}">${label}</text>`;
+    if (!pick) return draw;
+    return `<g class="road-hit${on ? ' is-on' : ''}" data-act="route-toggle" data-id="${edge.id}"><line class="road-pad" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>${draw}</g>`;
   }).join('');
+  const via = pick && pos[graph.via]
+    ? `<circle class="via" cx="${pos[graph.via][0]}" cy="${pos[graph.via][1]}" r="28"></circle>`
+    : '';
   const tone = { A: '#3de0ff', B: '#9b8cff', C: '#3ee0a0', D: '#ffc14d', E: '#ff8fab' };
   const nodes = Object.keys(pos).map((id) => `<circle cx="${pos[id][0]}" cy="${pos[id][1]}" r="22" fill="${tone[id]}"></circle><text class="node" x="${pos[id][0]}" y="${pos[id][1] + 4}">${short[id]}</text>`).join('');
-  return `<svg class="road" viewBox="0 0 340 250" role="img" aria-label="Граф дорог">${lines}${nodes}</svg>`;
+  return `<svg class="road" viewBox="0 0 340 250" role="img" aria-label="Граф дорог">${lines}${via}${nodes}</svg>`;
 }
 
 function routeSum(graph) {
   const picked = graph.route || [];
   return graph.edges.reduce((sum, edge) => sum + (picked.indexOf(edge.id) >= 0 ? edge.w : 0), 0);
+}
+
+function routePath(graph) {
+  const picked = graph.route || [];
+  const edges = graph.edges.filter((edge) => picked.indexOf(edge.id) >= 0);
+  if (!edges.length) return null;
+  const paths = allSimplePaths(buildAdj(edges), 'A', 'E').filter((item) => item.path.indexOf(graph.via) >= 0);
+  for (let i = 0; i < paths.length; i++) {
+    const item = paths[i];
+    const used = {};
+    let count = 0;
+    let broken = false;
+    for (let step = 0; step < item.path.length - 1; step++) {
+      const a = item.path[step];
+      const b = item.path[step + 1];
+      let edge = null;
+      for (let k = 0; k < edges.length; k++) {
+        const row = edges[k];
+        if ((row.a === a && row.b === b) || (row.a === b && row.b === a)) { edge = row; break; }
+      }
+      if (!edge || used[edge.id]) { broken = true; break; }
+      used[edge.id] = true;
+      count += 1;
+    }
+    if (!broken && count === edges.length) return item;
+  }
+  return null;
+}
+
+function routeHint(graph) {
+  const via = graph.names[graph.via] || 'нужная точка';
+  if (!graph.route || !graph.route.length) return 'Нажми дороги на карте';
+  const path = routePath(graph);
+  if (!path) return 'Нужен один путь: Дом → ' + via + ' → Стадион, без лишних дорог';
+  return path.path.map((id) => graph.names[id]).join(' → ');
 }
 
 function trainer4(lesson) {
@@ -2349,12 +2390,13 @@ function trainer4(lesson) {
       const on = graph.route.indexOf(edge.id) >= 0;
       return `<button class="btn chip ${on ? 'is-on' : ''}" type="button" data-act="route-toggle" data-id="${edge.id}">${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])} · ${edge.w} км</button>`;
     }).join('');
-    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="fine">Дом → ${esc(graph.names[graph.via])} → Стадион. Включай дороги, сумма считается сама.</p><p class="play-count ${graph.route.length ? 'is-ready' : ''}">Сумма: ${routeSum(graph)} км</p>${roadSvg(graph)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать сумму</button></article>`;
+    const built = routePath(graph);
+    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="fine">Жёлтое кольцо — обязательная остановка. Нажми дороги на карте.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать маршрут</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   const wrote = graph.pathGiven;
   const same = best && wrote === best.len;
-  const compare = best ? `<p class="${same ? 'ok-text' : 'warn-text'}">Вы написали ${wrote == null ? '—' : wrote} км. Верная сумма ${best.len} км: ${esc(best.path.map((id) => graph.names[id]).join(' → '))}.</p><p>Длину пути получают сложением километров его дорог.</p>` : '';
+  const compare = best ? `<p class="${same ? 'ok-text' : 'warn-text'}">Ваш маршрут: ${wrote == null ? '—' : wrote} км. Кратчайший: ${best.len} км — ${esc(best.path.map((id) => graph.names[id]).join(' → '))}.</p>` : '';
   return `<article class="card"><h3>Маршрут проверен</h3>${compare}<button class="btn btn-primary" type="button" data-act="go-notes">К дневнику миссии</button></article>`;
 }
 
@@ -2908,9 +2950,10 @@ function actConfirm(name) {
   }
   if (name === 'path-submit') {
     if (!lesson.trainer.graph || lesson.trainer.graph.pathSubmitted) return;
-    if (!lesson.trainer.graph.route || !lesson.trainer.graph.route.length) { toast('Включи дороги своего маршрута.'); return; }
-    const sum = routeSum(lesson.trainer.graph);
-    confirmModal('Сдать сумму ' + sum + ' км?', 'Попытка одна.', () => {
+    const path = routePath(lesson.trainer.graph);
+    if (!path) { toast('Собери один путь без лишних дорог.'); return; }
+    const sum = path.len;
+    confirmModal('Сдать маршрут на ' + sum + ' км?', 'Попытка одна.', () => {
       if (lesson.trainer.graph.pathSubmitted) return;
       const best = shortestVia(buildAdj(lesson.trainer.graph.edges), 'A', lesson.trainer.graph.via, 'E');
       if (!best || sum !== best.len) addTrainerError(lesson, 1);
