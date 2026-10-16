@@ -2196,7 +2196,8 @@ function classifyHtml(trainer) {
       const ok = item.type === type;
       return `<span class="bin-chip ${ok ? 'is-ok' : 'is-no'}">${esc(item.text)}</span>`;
     }).join('');
-    return `<div class="sort-bin"><h4>${title}</h4>${cards || '<p class="fine">Пока пусто</p>'}</div>`;
+    const tone = type === 'mat' ? 'is-mat' : 'is-inf';
+    return `<div class="sort-bin ${tone}"><h4>${title}</h4>${cards || '<p class="fine">Пока пусто</p>'}</div>`;
   }
   const current = locked ? null : items.find((item) => !answers[item.id]);
   const deck = current
@@ -2372,6 +2373,7 @@ function trainer3(lesson) {
       if (algo.orderLocked) return `<div class="flow-slot is-filled ${good ? 'is-ok' : ''} ${bad ? 'is-no' : ''}"><span class="slot-n">${index + 1}</span>${body}</div>`;
       return `<button class="btn flow-slot ${block ? 'is-filled' : ''} ${algo.picked && block && algo.picked === id ? 'is-on' : ''}" type="button" data-act="algo-slot" data-i="${index}"><span class="slot-n">${index + 1}</span>${body}</button>`;
     }).join('<div class="flow-arrow" aria-hidden="true">↓</div>');
+    const legend = algo.orderLocked ? '' : `<div class="shape-key"><span><i class="shape shape-oval"></i>начало</span><span><i class="shape shape-para"></i>ввод</span><span><i class="shape shape-rect"></i>действие</span><span><i class="shape shape-diamond"></i>вопрос</span></div>`;
     const bank = algo.orderLocked ? '' : `<div class="flow-bank">${algo.bank.map((id) => {
       const block = byIdMap[id];
       return `<button class="btn flow-block" type="button" data-act="algo-pick" data-id="${id}">${shapeHtml(block.shape)}<span>${esc(block.text)}</span></button>`;
@@ -2385,7 +2387,7 @@ function trainer3(lesson) {
     const action = algo.orderLocked
       ? `${fixes}<p class="ok-text">Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
-    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p><p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${bank}<div class="flow">${slots}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p><p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${legend}${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
   if (!algo.traceLocked) {
     const branchReady = algo.traceBranch === 'yes' || algo.traceBranch === 'no';
@@ -2408,9 +2410,9 @@ function distanceTable(graph) {
   const ids = ['A', 'B', 'C', 'D', 'E'];
   const head = ids.map((id) => `<th>${short[id]}</th>`).join('');
   const rows = ids.map((row) => `<tr><th>${short[row]}</th>${ids.map((col) => {
-    if (row === col) return '<td>·</td>';
+    if (row === col) return '<td class="gap">·</td>';
     const weight = edgeWeight(graph, row, col);
-    return `<td>${weight == null ? '—' : weight}</td>`;
+    return `<td class="${weight == null ? 'gap' : 'km'}">${weight == null ? '—' : weight}</td>`;
   }).join('')}</tr>`).join('');
   return `<p class="fine">Километры спрятаны в таблице. Строка и столбец — пункты. Впиши число у той же дороги.</p><div class="table-wrap"><table class="matrix matrix-fit"><tr><th>км</th>${head}</tr>${rows}</table></div>`;
 }
