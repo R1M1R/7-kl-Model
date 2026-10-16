@@ -1576,7 +1576,7 @@ function ensureIdentity() {
     save();
   }
   if (typeof state.roomCode !== 'string') state.roomCode = '';
-  if (!state.groupId) state.groupId = '1';
+  if (state.groupId !== '1' && state.groupId !== '2') state.groupId = '1';
   if (state.student) state.roomCode = roomFromClass(state.student.className);
 }
 
@@ -1669,7 +1669,6 @@ function rankSection() {
     <label class="field">Группа, которую назвал учитель<select id="room-group">
       <option value="1" ${state.groupId === '1' ? 'selected' : ''}>Группа 1</option>
       <option value="2" ${state.groupId === '2' ? 'selected' : ''}>Группа 2</option>
-      <option value="3" ${state.groupId === '3' ? 'selected' : ''}>Группа 3</option>
     </select></label>
     <button class="btn btn-primary" type="button" data-act="save-room">Запомнить группу</button>
     ${connected ? '<div id="rank-wrap"><p class="fine">Загружаю рейтинг…</p></div>' : '<p class="fine">Общий рейтинг появится, когда учитель подключит журнал класса. Свои оценки выше уже сохранены на этом телефоне.</p>'}
@@ -1714,7 +1713,6 @@ function teacherJournalSection() {
         <label class="field">Код доступа коллеги<input id="colleague-uid" autocomplete="off"></label>
         <label class="fine"><input type="checkbox" class="grant-group" value="1"> Группа 1</label>
         <label class="fine"><input type="checkbox" class="grant-group" value="2"> Группа 2</label>
-        <label class="fine"><input type="checkbox" class="grant-group" value="3"> Группа 3</label>
         <button class="btn btn-ghost" type="button" data-act="grant-teacher">Открыть коллеге выбранные группы</button>
       </details>
     </div>
@@ -1839,7 +1837,7 @@ function paintLoadedJournal(group) {
   });
   if (group && quiet.length) sheets.unshift('В группе ' + group + ' нет работ: ' + quiet.join(', '));
   lastJournalText = sheets.join('\n\n');
-  const filters = ['', '1', '2', '3'].map((id) => {
+  const filters = ['', '1', '2'].map((id) => {
     const on = String(group || '') === id;
     const label = id ? 'Группа ' + id : 'Все группы';
     return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="journal-group" data-group="${id}">${label}</button>`;
@@ -1848,7 +1846,7 @@ function paintLoadedJournal(group) {
   const quietLine = group && quiet.length ? `<p class="fine">В группе ${esc(group)} пока нет работ: ${esc(quiet.join(', '))}.</p>` : '';
   const node = $('journal-out');
   if (node) {
-    node.innerHTML = `<div class="group-picks">${filters}</div>${quietLine}${menu}<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>${blocks.join('')}`;
+    node.innerHTML = `<div class="group-filters">${filters}</div>${quietLine}${menu}<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>${blocks.join('')}`;
   }
 }
 
@@ -2632,7 +2630,8 @@ function handleAuth(event) {
     createdAt: Date.now()
   };
   state.teacherDoor = false;
-  state.groupId = (document.querySelector('input[name="signupGroup"]:checked') || {}).value || '1';
+  const pickedGroup = (document.querySelector('input[name="signupGroup"]:checked') || {}).value;
+  state.groupId = pickedGroup === '2' ? '2' : '1';
   state.roomCode = roomFromClass(className);
   state.hw = emptyHw();
   save();
@@ -2880,7 +2879,8 @@ function handleAct(act, btn) {
   }
   if (act === 'verify') { runVerify(); return; }
   if (act === 'save-room') {
-    const group = ($('room-group') && $('room-group').value) || '1';
+    const picked = $('room-group') && $('room-group').value;
+    const group = picked === '2' ? '2' : '1';
     state.groupId = group;
     state.roomCode = roomFromClass(state.student.className);
     save();

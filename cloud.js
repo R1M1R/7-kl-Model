@@ -166,8 +166,7 @@
     });
     await root().child(`classes/${roomId}/groups`).update({
       1: { title: 'Группа 1' },
-      2: { title: 'Группа 2' },
-      3: { title: 'Группа 3' }
+      2: { title: 'Группа 2' }
     });
     return user.uid;
   }
@@ -190,7 +189,7 @@
     const user = firebase.auth().currentUser;
     if (!user || user.isAnonymous) return { role: 'none', uid: user ? user.uid : '', groups: [] };
     const master = await root().child(`classes/${roomId}/masters/${user.uid}`).get();
-    if (master.exists()) return { role: 'master', uid: user.uid, groups: ['1', '2', '3'] };
+    if (master.exists()) return { role: 'master', uid: user.uid, groups: ['1', '2'] };
     const teacher = await root().child(`classes/${roomId}/teachers/${user.uid}`).get();
     if (!teacher.exists()) return { role: 'none', uid: user.uid, groups: [] };
     const groups = Object.keys((teacher.val() && teacher.val().groups) || {}).filter((id) => teacher.val().groups[id]);
