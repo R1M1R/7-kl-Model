@@ -1726,8 +1726,56 @@ function teacherJournalSection() {
   </article>`;
 }
 
+function lessonList(row) {
+  const lessons = row && row.lessons;
+  if (!lessons) return [];
+  const list = Array.isArray(lessons) ? lessons : Object.keys(lessons).map((key) => lessons[key]);
+  return list.filter((lesson) => lesson && lesson.n != null);
+}
+
 function lessonByNumber(row, n) {
-  return (row.lessons || []).find((lesson) => lesson.n === n) || null;
+  return lessonList(row).find((lesson) => Number(lesson.n) === Number(n)) || null;
+}
+
+function mergeJournalRows(rows) {
+  const map = new Map();
+  (rows || []).forEach((row) => {
+    const key = String(row.lastName || '').trim().toLowerCase() + '|' + String(row.firstName || '').trim().toLowerCase();
+    const current = map.get(key);
+    if (!current) {
+      map.set(key, {
+        lastName: row.lastName,
+        firstName: row.firstName,
+        groupId: String(row.groupId || ''),
+        groups: [String(row.groupId || '')],
+        lessons: lessonList(row),
+        homework: Array.isArray(row.homework) ? row.homework : []
+      });
+      return;
+    }
+    const lessons = [1, 2, 3, 4].map((n) => {
+      const prev = lessonByNumber(current, n);
+      const next = lessonByNumber(row, n);
+      if (prev && prev.done && next && next.done) return (Number(prev.total) || 0) >= (Number(next.total) || 0) ? prev : next;
+      if (next && next.done) return next;
+      return prev || next;
+    }).filter(Boolean);
+    const group = String(row.groupId || '');
+    if (current.groups.indexOf(group) < 0) current.groups.push(group);
+    const nextDone = lessonList(row).filter((lesson) => lesson.done).length;
+    const prevDone = lessonList(current).filter((lesson) => lesson.done).length;
+    if (nextDone > prevDone) current.groupId = group;
+    current.lessons = lessons;
+    if (Array.isArray(row.homework)) {
+      current.homework = [1, 2, 3, 4].map((n) => {
+        const prev = (current.homework || []).find((item) => Number(item.n) === n);
+        const next = row.homework.find((item) => Number(item.n) === n);
+        if (prev && prev.done) return prev;
+        return next || prev;
+      }).filter(Boolean);
+    }
+  });
+  return Array.from(map.values());
 }
 
 function missingRows(rows, n) {
@@ -1801,6 +1849,7 @@ function journalCards(rows) {
   let lastGroup = null;
   const body = sorted.map((row) => {
     const group = String(row.groupId || '–');
+    const extraGroups = (row.groups || []).filter((item) => item && item !== group);
     const band = group === lastGroup ? '' : `<h3 class="journal-band">Группа ${esc(group)}</h3>`;
     lastGroup = group;
     const hasTwo = [1, 2, 3, 4].some((n) => {
@@ -1810,7 +1859,8 @@ function journalCards(rows) {
     const marks = [1, 2, 3, 4].map((n) => `<span><small>${n}</small>${gradeMark(lessonByNumber(row, n))}</span>`).join('');
     const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
     const hw = (row.homework || []).filter((item) => item.done).length;
-    return `${band}<article class="journal-person ${hasTwo ? 'is-weak' : ''}"><div><b>${esc(row.lastName)} ${esc(row.firstName)}</b><span>группа ${esc(group)}</span></div><div class="journal-marks">${marks}</div><p>${points} баллов · ДЗ ${hw}/4</p></article>`;
+    const also = extraGroups.length ? `<span>ещё есть запись в группе ${esc(extraGroups.join(', '))}</span>` : '';
+    return `${band}<article class="journal-person ${hasTwo ? 'is-weak' : ''}"><div><b>${esc(row.lastName)} ${esc(row.firstName)}</b><span>группа ${esc(group)}</span></div>${also}<div class="journal-marks">${marks}</div><p>${points} баллов · ДЗ ${hw}/4</p></article>`;
   }).join('');
   const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
@@ -1825,10 +1875,11 @@ function journalCards(rows) {
     }).join('');
     return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, группа ${esc(row.groupId || '–')}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
   }).join('');
-  return `<p class="fine">Учеников ${sorted.length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
-    ${gapBlocks(sorted)}
-    ${weakLine(sorted) ? `<p class="warn-text">${esc(weakLine(sorted))}</p>` : ''}
+  const gaps = gapBlocks(sorted);
+  return `<p class="fine">Учеников ${sorted.length}. С оценкой хотя бы за один урок: ${sorted.filter((row) => lessonList(row).some((lesson) => lesson.done)).length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
     <div class="journal-list">${body}</div>
+    ${weakLine(sorted) ? `<p class="warn-text">${esc(weakLine(sorted))}</p>` : ''}
+    ${gaps ? `<details class="rules"><summary>Кто ещё не сдал урок</summary>${gaps}</details>` : ''}
     <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
 }
 
@@ -1836,8 +1887,9 @@ let lastJournalText = '';
 let lastJournalPack = [];
 
 function rowsForGroup(rows, group) {
-  if (!group) return rows || [];
-  return (rows || []).filter((row) => String(row.groupId || '') === String(group));
+  const merged = mergeJournalRows(rows);
+  if (!group) return merged;
+  return merged.filter((row) => String(row.groupId || '') === String(group) || (row.groups || []).map(String).indexOf(String(group)) >= 0);
 }
 
 function paintLoadedJournal(group) {
@@ -2116,7 +2168,7 @@ function theoryHtml(lesson) {
     : '';
   const note = card.solved
     ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
-    : `<div class="timer-track"><span data-read-bar style="width:${Math.round((1 - left / READ_MS) * 100)}%"></span></div><p class="js-readgate fine">${locked ? `Сначала прочитайте мысль: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
+    : `<div class="timer-track"><span data-read-bar style="width:${Math.round((1 - left / READ_MS) * 100)}%"></span></div><p class="play-count js-readgate">${locked ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Можно отвечать'}</p>`;
   const mission = MISSIONS[lesson.n];
   const parts = theoryParts(card.body);
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
@@ -3566,7 +3618,10 @@ function readGateTick() {
   const label = document.querySelector('.js-readgate');
   const bar = document.querySelector('[data-read-bar]');
   if (bar) bar.style.width = `${Math.round((1 - left / READ_MS) * 100)}%`;
-  if (label) label.textContent = left > 0 ? `Сначала прочитайте мысль: ${Math.ceil(left / 1000)} с` : 'Выберите ответ';
+  if (label) {
+    label.textContent = left > 0 ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Можно отвечать';
+    label.classList.toggle('is-ready', left <= 0);
+  }
   document.querySelectorAll('[data-act="theory-pick"]').forEach((button) => {
     const index = Number(button.dataset.i);
     button.disabled = left > 0 || card.wrong.indexOf(index) >= 0;

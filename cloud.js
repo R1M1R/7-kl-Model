@@ -88,13 +88,14 @@
     const id = payload.studentId;
     await root().child(`users/${user.uid}`).update({ classId: room, groupId, role: 'student' });
     const previousGroup = payload.previousGroup ? String(payload.previousGroup) : '';
-    if (previousGroup && previousGroup !== groupId) {
-      const oldBoard = root().child(`classes/${room}/boardByGroup/${previousGroup}/${id}`);
+    const staleGroups = [previousGroup, groupId === '2' ? '1' : '2'].filter((value, index, list) => value && value !== groupId && list.indexOf(value) === index);
+    for (const staleGroup of staleGroups) {
+      const oldBoard = root().child(`classes/${room}/boardByGroup/${staleGroup}/${id}`);
       try {
         const prev = await oldBoard.get();
         if (prev.exists() && prev.val().uid === user.uid) {
           await oldBoard.remove();
-          await root().child(`classes/${room}/workByGroup/${previousGroup}/${id}`).remove();
+          await root().child(`classes/${room}/workByGroup/${staleGroup}/${id}`).remove();
         }
       } catch (error) {
         // Старая группа останется, пока правила не разрешат удаление. Новая запись всё равно уйдёт.
@@ -125,7 +126,9 @@
       const ref = root().child(`classes/${roomId}/boardByGroup/${groupId}`);
       const handler = (snap) => {
         const rows = [];
-        snap.forEach((child) => rows.push(Object.assign({ id: child.key }, child.val())));
+        snap.forEach((child) => {
+          rows.push(Object.assign({ id: child.key }, child.val()));
+        });
         rows.sort((a, b) => (b.points || 0) - (a.points || 0) || String(a.lastName).localeCompare(String(b.lastName), 'ru'));
         onRows(rows);
       };
@@ -202,7 +205,9 @@
     const rows = [];
     for (const groupId of access.groups) {
       const snap = await root().child(`classes/${roomId}/workByGroup/${groupId}`).get();
-      snap.forEach((child) => rows.push(Object.assign({ id: child.key, groupId }, child.val())));
+      snap.forEach((child) => {
+        rows.push(Object.assign({ id: child.key, groupId }, child.val()));
+      });
     }
     rows.sort((a, b) => String(a.groupId).localeCompare(String(b.groupId)) || String(a.lastName).localeCompare(String(b.lastName), 'ru'));
     return { access, rows };
