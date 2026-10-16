@@ -2320,7 +2320,7 @@ function render(options) {
   if (tabbar) tabbar.classList.toggle('is-hidden', teacherDoor);
   if (state.student) readHwFromDom();
   $('student-chip').textContent = state.student
-    ? `${state.student.lastName} ${state.student.firstName} · ${state.student.className}`
+    ? `${state.student.lastName} ${state.student.firstName} · ${state.student.className} · группа ${state.groupId === '2' ? '2' : '1'}`
     : 'Учитель';
   const notice = $('notice');
   if (state.notice) {
