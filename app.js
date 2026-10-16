@@ -2254,6 +2254,35 @@ function ensureSlots(algo) {
   algo.picked = null;
 }
 
+function takenBranch(algo) {
+  const sample = algo.challenge.sample;
+  if (algo.kind === 'discount') return sample >= algo.threshold ? 'yes' : 'no';
+  if (algo.kind === 'climate') return sample > algo.limit ? 'yes' : 'no';
+  return sample >= 1 ? 'yes' : 'no';
+}
+
+function traceFlowHtml(algo, byIdMap) {
+  const branch = algo.traceBranch || null;
+  const locked = !!algo.traceLocked;
+  const chunks = [];
+  algo.correct.forEach((id, index) => {
+    if (index) chunks.push('<div class="flow-arrow" aria-hidden="true">↓</div>');
+    const block = byIdMap[id];
+    let cls = 'is-filled';
+    if (id === 'yes' || id === 'no') {
+      if (branch === id) cls += ' is-ok';
+      else cls += ' is-dim';
+    } else if (!branch && id === 'if') cls += ' is-now';
+    else if (!branch && (id === 'out' || id === 'e')) cls += ' is-dim';
+    else cls += ' is-ok';
+    chunks.push(`<div class="flow-slot ${cls}"><span class="slot-n">${index + 1}</span>${shapeHtml(block.shape)}<span>${esc(block.text)}</span></div>`);
+    if (id === 'if' && !locked) {
+      chunks.push(`<div class="btn-row trace-branch"><button class="btn ${branch === 'yes' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="trace-branch" data-branch="yes">Да</button><button class="btn ${branch === 'no' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="trace-branch" data-branch="no">Нет</button></div>`);
+    }
+  });
+  return `<div class="flow">${chunks.join('')}</div>`;
+}
+
 function trainer3(lesson) {
   const algo = lesson.trainer.algo;
   const byIdMap = {};
@@ -2283,12 +2312,15 @@ function trainer3(lesson) {
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
     return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p><p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
-  const correctList = algo.correct.map((id) => `<div class="btn block-item">${shapeHtml(byIdMap[id].shape)}<span>${esc(byIdMap[id].text)}</span></div>`).join('');
   if (!algo.traceLocked) {
+    const branchReady = algo.traceBranch === 'yes' || algo.traceBranch === 'no';
     const chooser = algo.challenge.type === 'choice'
-      ? algo.challenge.options.map((option, index) => `<button class="btn choice ${algo.tracePick === index ? 'is-on' : ''}" type="button" data-act="trace-pick" data-i="${index}">${esc(option)}</button>`).join('')
-      : `<label class="field">Ответ<input id="trace-num" inputmode="numeric" autocomplete="off"></label>`;
-    return `<article class="card no-cheat"><h3>Прогони схему</h3><p class="fine">Иди сверху вниз. Если в ромбе «да», вторая ветка молчит.</p>${correctList}<p>${esc(algo.challenge.text)}</p>${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать трассировку</button></article>`;
+      ? ''
+      : `<label class="field">Цена на выходе, ₽<input id="trace-num" inputmode="numeric" autocomplete="off"></label>`;
+    const hint = algo.challenge.type === 'choice'
+      ? (branchReady ? 'Ветка выбрана' : 'Нажми Да или Нет в ромбе')
+      : (branchReady ? 'Ветка выбрана — посчитай цену' : 'Сначала выбери ветку ромба');
+    return `<article class="card no-cheat"><h3>Прогони схему</h3><p>${esc(algo.challenge.text)}</p><p class="play-count ${branchReady ? 'is-ready' : ''}">${hint}</p>${traceFlowHtml(algo, byIdMap)}${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать прогон</button></article>`;
   }
   const traceCheck = algo.traceGivenText
     ? `<p class="${algo.traceOk ? 'ok-text' : 'warn-text'}">Вы ответили: ${esc(algo.traceGivenText)}. Верно: ${esc(algo.traceRightText)}.</p>`
@@ -2903,10 +2935,13 @@ function actConfirm(name) {
     let okValue = false;
     let value = null;
     if (algo.challenge.type === 'choice') {
-      if (algo.tracePick == null) { toast('Выберите выход алгоритма.'); return; }
-      okValue = algo.tracePick === algo.challenge.correctIndex;
-      value = algo.challenge.options[algo.tracePick];
+      if (algo.traceBranch !== 'yes' && algo.traceBranch !== 'no') { toast('Нажми Да или Нет в ромбе.'); return; }
+      const byId = {};
+      algo.blocks.forEach((block) => { byId[block.id] = block; });
+      okValue = algo.traceBranch === takenBranch(algo);
+      value = byId[algo.traceBranch].text;
     } else {
+      if (algo.traceBranch !== 'yes' && algo.traceBranch !== 'no') { toast('Сначала нажми Да или Нет в ромбе.'); return; }
       const parsed = readInt('trace-num');
       if (!parsed.ok) { toast('Введите целое число.'); return; }
       value = String(parsed.value);
@@ -2918,7 +2953,7 @@ function actConfirm(name) {
       algo.traceOk = okValue;
       algo.traceGivenText = String(value);
       algo.traceRightText = algo.challenge.type === 'choice'
-        ? algo.challenge.options[algo.challenge.correctIndex]
+        ? algo.blocks.find((block) => block.id === takenBranch(algo)).text
         : String(algo.challenge.answer);
       algo.traceLocked = true;
       lesson.trainer.stage = 'trace-review';
@@ -3312,6 +3347,14 @@ function handleAct(act, btn) {
     lesson.trainer.stage = 'trace';
     save();
     render({ toTop: true });
+    return;
+  }
+  if (act === 'trace-branch' && lesson.trainer.algo && !lesson.trainer.algo.traceLocked && lesson.trainer.stage === 'trace') {
+    const branch = btn.dataset.branch;
+    if (branch !== 'yes' && branch !== 'no') return;
+    lesson.trainer.algo.traceBranch = branch;
+    save();
+    render();
     return;
   }
   if (act === 'trace-pick' && !lesson.trainer.algo.traceLocked) {

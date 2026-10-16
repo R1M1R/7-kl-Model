@@ -542,6 +542,11 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 }
 .flow-slot { border-style: dashed; }
 .flow-slot.is-filled, .flow-block.is-on, .flow-slot.is-on { border-style: solid; }
+.flow-slot.is-ok { border-style: solid; border-color: var(--good); background: rgba(62, 224, 160, 0.12); }
+.flow-slot.is-no { border-style: solid; border-color: var(--bad); background: rgba(255, 93, 115, 0.1); }
+.flow-slot.is-now { border-style: solid; border-color: var(--amber); }
+.flow-slot.is-dim { opacity: 0.38; }
+.trace-branch { margin: 8px 0 4px; }
 .slot-n {
   width: 28px;
   height: 28px;
