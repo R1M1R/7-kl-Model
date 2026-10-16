@@ -1598,7 +1598,8 @@ function cloudStudentId() {
 function progressPayload() {
   const lessons = [1, 2, 3, 4].map((n) => {
     const lesson = state.lessons[n];
-    if (!lesson || lesson.phase !== 'done') return { n, done: false };
+    if (!lesson || lesson.phase === 'goal' || !lesson.startedAt) return { n, done: false };
+    if (lesson.phase !== 'done') return { n, done: false, working: true };
     return {
       n,
       done: true,
@@ -1791,14 +1792,23 @@ function gapLine(rows) {
   const parts = [1, 2, 3, 4].map((n) => {
     const missing = missingRows(rows, n);
     if (!missing.length) return '';
-    const byGroup = {};
-    missing.forEach((row) => {
-      const group = String(row.groupId || '–');
-      if (!byGroup[group]) byGroup[group] = [];
-      byGroup[group].push(`${row.lastName} ${row.firstName}`);
+    const lineFor = (list, title) => {
+      if (!list.length) return '';
+      const byGroup = {};
+      list.forEach((row) => {
+        const group = String(row.groupId || '–');
+        if (!byGroup[group]) byGroup[group] = [];
+        byGroup[group].push(`${row.lastName} ${row.firstName}`);
+      });
+      const groups = Object.keys(byGroup).sort().map((group) => `гр. ${group}: ${byGroup[group].join(', ')}`).join('; ');
+      return `Урок ${n} ${title} (${list.length}). ${groups}`;
+    };
+    const working = missing.filter((row) => {
+      const lesson = lessonByNumber(row, n);
+      return lesson && lesson.working;
     });
-    const groups = Object.keys(byGroup).sort().map((group) => `гр. ${group}: ${byGroup[group].join(', ')}`).join('; ');
-    return `Урок ${n} не сдали (${missing.length}). ${groups}`;
+    const idle = missing.filter((row) => working.indexOf(row) < 0);
+    return [lineFor(working, 'ещё идёт'), lineFor(idle, 'не начат')].filter(Boolean).join('\n');
   }).filter(Boolean);
   return parts.length ? parts.join('\n') : 'Среди приславших все четыре урока сданы.';
 }
@@ -1837,7 +1847,8 @@ function gapBlocks(rows) {
 }
 
 function gradeMark(lesson) {
-  if (!lesson || !lesson.done || !lesson.grade) return '–';
+  if (!lesson || !lesson.done) return lesson && lesson.working ? '<span class="badge">идёт</span>' : '–';
+  if (!lesson.grade) return '–';
   return `<span class="badge grade-${lesson.grade}">${lesson.grade}</span>`;
 }
 
@@ -1865,7 +1876,7 @@ function journalCards(rows) {
   }).join('');
   const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
-      const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : `Урок ${lesson.n}: не сдан`;
+      const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : (lesson.working ? `Урок ${lesson.n}: ещё идёт` : `Урок ${lesson.n}: не начат`);
       const notes = (lesson.notes || []).filter(Boolean).map((line, index) => `дневник ${index + 1}: ${line}`).join('\n');
       return notes ? `${head}\n${notes}` : head;
     }).join('\n');
@@ -1942,7 +1953,7 @@ function journalTsv(title, rows) {
   sorted.forEach((row) => {
     const grades = [1, 2, 3, 4].map((n) => {
       const lesson = lessonByNumber(row, n);
-      return lesson && lesson.done ? lesson.grade : '–';
+      return lesson && lesson.done ? lesson.grade : (lesson && lesson.working ? 'идёт' : '–');
     });
     const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
     const hw = (row.homework || []).filter((item) => item.done).length;
@@ -2619,7 +2630,7 @@ function labTask1(rng) {
     ];
     const pair = pairs[Math.floor(rng() * pairs.length)];
     const options = rng() < 0.5 ? [pair[0], pair[1]] : [pair[1], pair[0]];
-    return { kind: 'choice', text: 'Где модель, а не оригинал?', options, correctIndex: options.indexOf(pair[0]) };
+    return { kind: 'choice', text: 'Где модель, а не оригинал?', options, correctIndex: options.indexOf(pair[0]), hint: 'Оригинал существует сам. Модель его заменяет: чертёж, макет, схема.' };
   }
   if (kind === 1) {
     const cards = [
@@ -2629,7 +2640,7 @@ function labTask1(rng) {
     ];
     const card = cards[Math.floor(rng() * cards.length)];
     const options = shuffle(rng, [card.good].concat(card.bad));
-    return { kind: 'choice', text: 'Цель: ' + card.goal + '. Что здесь существенно?', options, correctIndex: options.indexOf(card.good) };
+    return { kind: 'choice', text: 'Цель: ' + card.goal + '. Что здесь существенно?', options, correctIndex: options.indexOf(card.good), hint: 'Существенно то, без чего эту цель не выполнить. Цвет и украшения чаще лишние.' };
   }
   const items = [
     ['Глобус', 0],
@@ -2638,19 +2649,19 @@ function labTask1(rng) {
     ['Таблица расстояний', 1]
   ];
   const item = items[Math.floor(rng() * items.length)];
-  return { kind: 'choice', text: item[0] + ' — какая это модель?', options: ['Материальная', 'Информационная'], correctIndex: item[1] };
+  return { kind: 'choice', text: item[0] + ' — какая это модель?', options: ['Материальная', 'Информационная'], correctIndex: item[1], hint: 'Из вещества — материальная. Из знаков, слов и чисел — информационная.' };
 }
 
 function labTask2(rng) {
   if (rng() < 0.5) {
     const speed = (2 + Math.floor(rng() * 8)) * 5;
     const time = 2 + Math.floor(rng() * 5);
-    return { kind: 'number', text: 'Велосипед едет v = ' + speed + ' км/ч, t = ' + time + ' ч. S = v·t. Какой путь в км?', answer: speed * time };
+    return { kind: 'number', text: 'Велосипед едет v = ' + speed + ' км/ч, t = ' + time + ' ч. S = v·t. Какой путь в км?', answer: speed * time, hint: 'Путь — это скорость, умноженная на время.' };
   }
   const start = (2 + Math.floor(rng() * 6)) * 10;
   const flow = (1 + Math.floor(rng() * 6)) * 5;
   const time = 2 + Math.floor(rng() * 6);
-  return { kind: 'number', text: 'В баке было ' + start + ' л. Доливают ' + flow + ' л/мин, прошло ' + time + ' мин. V = V₀ + q·t. Сколько литров?', answer: start + flow * time };
+  return { kind: 'number', text: 'В баке было ' + start + ' л. Доливают ' + flow + ' л/мин, прошло ' + time + ' мин. V = V₀ + q·t. Сколько литров?', answer: start + flow * time, hint: 'Сначала умножьте, сколько долили. Потом прибавьте к тому, что уже было.' };
 }
 
 function labTask3(rng) {
@@ -2663,7 +2674,7 @@ function labTask3(rng) {
     ];
     const card = shapes[Math.floor(rng() * shapes.length)];
     const options = shuffle(rng, [card[1]].concat(card[2]));
-    return { kind: 'choice', text: card[0], options, correctIndex: options.indexOf(card[1]) };
+    return { kind: 'choice', text: card[0], options, correctIndex: options.indexOf(card[1]), hint: 'Овал — начало. Параллелограмм — ввод. Прямоугольник — действие. Ромб — вопрос да или нет.' };
   }
   if (kind === 1) {
     const limit = 20 + Math.floor(rng() * 6);
@@ -2671,10 +2682,10 @@ function labTask3(rng) {
     const cool = sample > limit;
     const options = shuffle(rng, ['Включить охлаждение', 'Выключить охлаждение', 'Ничего не проверять']);
     const correct = cool ? 'Включить охлаждение' : 'Выключить охлаждение';
-    return { kind: 'choice', text: 'Если T > ' + limit + ', включают охлаждение, иначе выключают. Подали T = ' + sample + '. Что будет?', options, correctIndex: options.indexOf(correct) };
+    return { kind: 'choice', text: 'Если T > ' + limit + ', включают охлаждение, иначе выключают. Подали T = ' + sample + '. Что будет?', options, correctIndex: options.indexOf(correct), hint: 'Сравните поданное число с порогом. Больше порога — ветка «да».' };
   }
   const options = shuffle(rng, ['Пока есть проходы, пропускай следующего', 'Вывести слово «готово»', 'Начало алгоритма']);
-  return { kind: 'choice', text: 'Где здесь цикл?', options, correctIndex: options.indexOf('Пока есть проходы, пропускай следующего') };
+  return { kind: 'choice', text: 'Где здесь цикл?', options, correctIndex: options.indexOf('Пока есть проходы, пропускай следующего'), hint: 'Цикл узнаётся по слову «пока»: действие повторяется.' };
 }
 
 function labTask4(rng) {
@@ -2692,7 +2703,8 @@ function labTask4(rng) {
     kind: 'choice',
     text: 'Путь А: ' + first + ' км и ' + second + ' км. Путь Б: ' + third + ' + ' + fourth + ' + ' + fifth + ' км. Какой короче?',
     options: ['Путь А', 'Путь Б'],
-    correctIndex: aShort ? 0 : 1
+    correctIndex: aShort ? 0 : 1,
+    hint: 'Сложите километры каждого пути отдельно. Короче тот, у кого сумма меньше.'
   };
 }
 
@@ -2721,10 +2733,13 @@ function labHtml(lesson) {
   const width = Math.min(100, Math.round(ms / LAB_MS * 100));
   const ready = labReady(lesson);
   const timeText = ms >= LAB_MS ? 'Полчаса набраны' : 'До получаса ещё ' + leftMin + ' мин';
+  const streak = lesson.lab.streak || 0;
+  const cheer = streak >= 3 ? '<p class="toy-mood is-warm">Серия ' + streak + '. Так держать.</p>' : '';
+  const hint = lesson.lab.miss != null && task.hint ? `<p class="warn-text">${esc(task.hint)}</p>` : '';
   const body = task.kind === 'number'
     ? '<label class="field">Целое число<input id="lab-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="lab-num">Проверить</button>'
     : task.options.map((option, index) => `<button class="btn choice ${lesson.lab.miss === index ? 'is-wrong' : ''}" type="button" data-act="lab-pick" data-i="${index}">${esc(option)}</button>`).join('');
-  return `<article class="card no-cheat mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. Урок занимает полчаса: примеры можно решать, пока идёт время.</p><p class="blitz-q">${esc(task.text)}</p>${body}<button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
+  return `<article class="card no-cheat mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. Урок занимает полчаса: примеры можно решать, пока идёт время.</p>${cheer}<p class="blitz-q">${esc(task.text)}</p>${hint}${body}<button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
 }
 
 function labTick() {
@@ -3708,11 +3723,13 @@ function handleAct(act, btn) {
     const ok = Number(btn.dataset.i) === lesson.lab.task.correctIndex;
     if (!ok) {
       lesson.lab.miss = Number(btn.dataset.i);
+      lesson.lab.streak = 0;
       save();
       render();
       return;
     }
     lesson.lab.miss = null;
+    lesson.lab.streak = (lesson.lab.streak || 0) + 1;
     lesson.lab.correct += 1;
     lesson.lab.index += 1;
     lesson.lab.task = makeLabTask(lesson);
@@ -3723,7 +3740,15 @@ function handleAct(act, btn) {
   if (act === 'lab-num' && lesson && lesson.phase === 'lab' && lesson.lab && lesson.lab.task && lesson.lab.task.kind === 'number') {
     const parsed = readInt('lab-num');
     if (!parsed.ok) { toast('Введите целое число.'); return; }
-    if (parsed.value !== lesson.lab.task.answer) { toast('Пока не сходится. Посчитайте ещё раз.'); return; }
+    if (parsed.value !== lesson.lab.task.answer) {
+      lesson.lab.miss = -1;
+      lesson.lab.streak = 0;
+      save();
+      render();
+      return;
+    }
+    lesson.lab.miss = null;
+    lesson.lab.streak = (lesson.lab.streak || 0) + 1;
     lesson.lab.correct += 1;
     lesson.lab.index += 1;
     lesson.lab.task = makeLabTask(lesson);
