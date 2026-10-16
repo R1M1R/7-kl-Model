@@ -372,6 +372,7 @@ img, svg { max-width: 100%; }
 .parallel-index .btn { display: grid; gap: 2px; }
 .parallel-index small { color: var(--muted); font-size: 0.72rem; font-weight: 700; }
 .group-picks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.hero-rank .group-picks { margin: 10px 0 4px; }
 .group-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
 .group-picks label {
   position: relative; min-height: 52px; display: grid; place-items: center;
