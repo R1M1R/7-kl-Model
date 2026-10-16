@@ -6,7 +6,7 @@
 const STORAGE_KEY = 'digitallab7-model-journal-v1';
 const SECRET = ['M7', 'FGOS', 'LAB', '2026', 'MODEL', 'SALT', 'K9'].join('-');
 const BLITZ_MS = 45000;
-const READ_MS = 12000;
+const READ_MS = 7000;
 const AUTHOR = 'Усеинов Эмир Рустемович';
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -666,7 +666,7 @@ function isMeaningful(text, minLen) {
   if (compact.length >= 4 && /^(.)\1+$/.test(compact)) return false;
   const banned = ['12345', '123456', 'qwerty', 'asdf', 'йцукен', 'тест', 'проверка', 'аааа', 'asdfgh', 'модель', 'объект', 'формула', 'алгоритм', 'граф', 'таблица', 'нет', 'да', 'тип', 'задача', 'ответ'];
   if (banned.includes(value.toLowerCase())) return false;
-  if (minLen >= 12) {
+  if (minLen >= 8) {
     const words = value.split(/\s+/).filter((word) => /[а-яёa-z]/i.test(word) && word.length >= 2);
     if (words.length < 2) return false;
   }
@@ -1497,8 +1497,8 @@ function stars(grade) {
   return '★'.repeat(count) + '☆'.repeat(3 - count);
 }
 
-function rulesHtml() {
-  return `<details class="rules"><summary>Как ставится оценка и что защищено</summary>
+function rulesHtml(learn) {
+  return `<details class="rules"><summary>Чему научитесь и как ставится оценка</summary>${learn || ''}
     <ul class="list-check">
       <li>Теория — до 15 баллов: 5 вопросов по 3. Балл только если ответ верный с первой попытки. Дальше без балла, но с пониманием.</li>
       <li>Тренажёр — 45 баллов. Каждая ошибка снимает 10. Сдать задание можно один раз.</li>
@@ -1700,7 +1700,7 @@ function teacherJournalSection() {
     </article>`;
   }
   return `<article class="card"><h3>Журнал всего класса</h3>
-    <p>Автор и ведущий: Усеинов Эмир Рустемович. Десять параллелей 7 класса открываются отсюда. Письмо на почту не нужно.</p>
+    <p>Нажмите класс или откройте все параллели. На кнопке четыре числа: сколько учеников сдали уроки 1, 2, 3 и 4.</p>
     <div class="stack">
       <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}" placeholder="Только для учителя"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
@@ -1892,7 +1892,7 @@ function rowsForGroup(rows, group) {
   return merged.filter((row) => String(row.groupId || '') === String(group) || (row.groups || []).map(String).indexOf(String(group)) >= 0);
 }
 
-function paintLoadedJournal(group) {
+function paintLoadedJournal(group, scroll) {
   const blocks = [];
   const sheets = [];
   const index = [];
@@ -1914,7 +1914,7 @@ function paintLoadedJournal(group) {
       ? 'ведущий, все группы'
       : (item.result.access.role === 'teacher' ? 'группы ' + item.result.access.groups.join(', ') : 'нет доступа');
     const counts = doneCounts(rows);
-    blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)} · ${esc(role)} · работ ${rows.length}</h3><p class="fine">Сдали: урок 1 — ${counts[0]}, урок 2 — ${counts[1]}, урок 3 — ${counts[2]}, урок 4 — ${counts[3]}.</p>${journalCards(rows)}</section>`);
+    blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)} · ${esc(role)} · учеников ${rows.length}</h3><p class="fine">Сдали: урок 1 — ${counts[0]}, урок 2 — ${counts[1]}, урок 3 — ${counts[2]}, урок 4 — ${counts[3]}.</p>${journalCards(rows)}</section>`);
     sheets.push(journalTsv(item.name + (group ? ' группа ' + group : ''), rows));
     index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(item.name)}<small>${rows.length} чел. · ${counts.join('/')}</small></button>`);
   });
@@ -1930,6 +1930,7 @@ function paintLoadedJournal(group) {
   const node = $('journal-out');
   if (node) {
     node.innerHTML = `<div class="group-filters">${filters}</div>${quietLine}${menu}<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>${blocks.join('')}`;
+    if (scroll) node.scrollIntoView({ block: 'start' });
   }
 }
 
@@ -2084,8 +2085,10 @@ function graphEditor(hw) {
 
 function renderTeacher() {
   const back = state.student ? '' : '<button class="btn btn-ghost" type="button" data-act="close-teacher">К входу учеников</button>';
-  return `${back}<p class="eyebrow">Для учителя</p><h2 class="section-title">Журнал и проверка</h2>
-    <article class="card"><p>Введите фамилию, имя и класс так, как на карточке ученика, и вставьте код или весь отчёт. Лаборатория проверит, что оценка, баллы, время, ошибки и уходы с экрана не переписаны.</p>
+  return `${back}<p class="eyebrow">Для учителя</p><h2 class="section-title">Журнал</h2>
+    ${teacherJournalSection()}
+    <details class="rules"><summary>Проверить один код</summary>
+      <p>Фамилия, имя и класс как на карточке ученика. Вставьте код или весь отчёт.</p>
       <div class="stack">
         <label class="field">Фамилия<input id="teacher-last" autocomplete="off"></label>
         <label class="field">Имя<input id="teacher-first" autocomplete="off"></label>
@@ -2094,9 +2097,9 @@ function renderTeacher() {
         <button class="btn btn-primary" type="button" data-act="verify">Проверить</button>
       </div>
       <div id="verify-out"></div>
-    </article>
-    <article class="card"><h3>Как читать код</h3><p class="mono">Uурок-оценка-баллы-Tсекунды-Fуходы-Eошибки-Sбыстрые-КОД</p><p class="fine">Последние 4 символа сходятся только при тех же ФИО, классе и числах. Секретная часть хранится в приложении: правки скриншота или localStorage без пересчёта кода учитель увидит.</p></article>
-    ${teacherJournalSection()}`;
+      <p class="mono">Uурок-оценка-баллы-Tсекунды-Fуходы-Eошибки-Sбыстрые-КОД</p>
+      <p class="fine">Последние 4 символа сходятся только при тех же ФИО, классе и числах.</p>
+    </details>`;
 }
 
 function lessonHtml(lesson) {
@@ -2119,9 +2122,10 @@ function goalHtml(lesson) {
   const meta = META[lesson.n];
   const mission = MISSIONS[lesson.n];
   const plan = mission.stations.map(([name, time]) => `<span class="station"><b>${esc(name)}</b><small>${esc(time)}</small></span>`).join('');
-  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><p class="story-lead">${esc(mission.story)}</p><p>${esc(meta.aim)}</p><ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul><h3>План на 45 минут</h3><div class="stations">${plan}</div>${rulesHtml()}
+  const learn = `<ul class="list-check">${meta.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>`;
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><p class="story-lead">${esc(mission.story)}</p><p>${esc(meta.aim)}</p><div class="stations">${plan}</div>
     <button class="btn btn-primary" type="button" data-act="start-lesson">Начать миссию</button>
-    <p class="fine">После старта попытка закрепляется на этом устройстве. Результат уйдёт учителю сам.</p></article>`;
+    ${rulesHtml(learn)}</article>`;
 }
 
 function notesHtml(lesson) {
@@ -3281,7 +3285,7 @@ function handleAct(act, btn) {
         }
       }
       lastJournalPack = pack;
-      paintLoadedJournal('');
+      paintLoadedJournal('', true);
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
@@ -3474,7 +3478,7 @@ function handleAct(act, btn) {
       const node = $('note-' + index);
       return node ? node.value.trim() : '';
     });
-    if (notes.some((text) => !isMeaningful(text, 16))) {
+    if (notes.some((text) => !isMeaningful(text, 10))) {
       toast('В каждом ответе нужны хотя бы два слова своими словами.');
       return;
     }
