@@ -192,7 +192,7 @@ const THEORY = {
   3: [
     {
       title: 'Что такое алгоритм',
-      body: '<p>Алгоритм — понятное и точное описание шагов, ведущих к результату. Его свойства: дискретность (отдельные шаги), определённость (ясно, что делать), результативность (есть итог), массовость (подходит для разных данных одного типа).</p><p>Исполнитель выполняет шаги формально, не догадываясь «что имелось в виду».</p>',
+      body: '<p>Алгоритм — это точные шаги к результату. Исполнитель делает их как написано и не догадывается, «что имелось в виду».</p><p>Шаги идут по одному, каждый понятен, в конце есть результат, и те же шаги подходят для других чисел.</p>',
       correct: '«Сделай хорошо и побыстрее»',
       options: ['«Сделай хорошо и побыстрее»', '«Если свет красный — стой, если зелёный — иди»', '«Введи два числа и сложи их»', '«Пока чайник не закипел — жди»'],
       explain: '«Хорошо и побыстрее» нельзя выполнить однозначно. В алгоритме каждый шаг должен быть понятен исполнителю.'
@@ -1040,7 +1040,6 @@ function buildBlitz(lesson, rng) {
     const correct = essential[Math.floor(rng() * essential.length)];
     return [
       makeChoice(rng, {
-        complex: true,
         text: `Объект: ${task.object}. Цель: «${task.goal}». Какой признак существенный именно для этой цели?`,
         correct: correct.text,
         wrong: noise.map((feature) => feature.text),
@@ -1116,7 +1115,6 @@ function buildBlitz(lesson, rng) {
     } else if (algo.kind === 'climate') {
       const cool = sample > algo.limit;
       trace = makeChoice(rng, {
-        complex: true,
         text: `Климат-контроль: если T > ${algo.limit}, включить охлаждение, иначе выключить. Ввели T = ${sample}. Что будет на выходе?`,
         correct: cool ? 'Включить охлаждение' : 'Выключить охлаждение',
         wrong: [cool ? 'Выключить охлаждение' : 'Включить охлаждение', 'Включить нагрев', 'Не проверять температуру'],
@@ -1125,7 +1123,6 @@ function buildBlitz(lesson, rng) {
     } else {
       const open = sample >= 1;
       trace = makeChoice(rng, {
-        complex: true,
         text: `Турникет открывается, только если N ≥ 1, и тогда списывает один проход. Ввели N = ${sample}. Какой выход верен?`,
         correct: open ? 'Турникет открыт, один проход списан' : 'Отказ: проходов нет',
         wrong: [open ? 'Отказ: проходов нет' : 'Турникет открыт, один проход списан', 'Турникет открыт без списания', 'Алгоритм не заканчивается'],
@@ -1707,12 +1704,12 @@ function teacherJournalSection() {
       <p class="eyebrow">Параллели</p>
       <div class="parallel-picks">${parallelClassNames().map((name) => `<button class="btn btn-ghost" type="button" data-act="teacher-parallel" data-class="${esc(name)}">${esc(name)}</button>`).join('')}</div>
       <button class="btn btn-primary" type="button" data-act="teacher-all">Открыть все параллели</button>
-      <button class="btn btn-ghost" type="button" data-act="teacher-claim-all">Закрепить меня ведущим всех параллелей</button>
-      <label class="field">Или один класс<input id="teacher-room" value="${esc(state.student ? state.student.className : '')}" placeholder="7А" autocapitalize="characters"></label>
-      <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть этот класс</button>
-      <button class="btn btn-ghost" type="button" data-act="teacher-logout">Выйти из входа учителя</button>
       <details class="rules">
-        <summary>Доступ коллеги и письмо для пароля</summary>
+        <summary>Доступ коллеги, ведущий и выход</summary>
+        <label class="field">Или один класс<input id="teacher-room" value="${esc(state.student ? state.student.className : '')}" placeholder="7А" autocapitalize="characters"></label>
+        <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть этот класс</button>
+        <button class="btn btn-ghost" type="button" data-act="teacher-claim-all">Закрепить меня ведущим всех параллелей</button>
+        <button class="btn btn-ghost" type="button" data-act="teacher-logout">Выйти из входа учителя</button>
         <button class="btn btn-ghost" type="button" data-act="teacher-reset">Прислать письмо для пароля</button>
         <p class="fine">На её телефоне та же вкладка: её почта, пароль и кнопка «Показать мой код доступа». Код вставьте сюда и отметьте только её группы.</p>
         <button class="btn btn-ghost" type="button" data-act="colleague-register">Показать мой код доступа</button>
@@ -2133,7 +2130,7 @@ function notesHtml(lesson) {
   const prompts = MISSIONS[lesson.n].notes;
   const fields = prompts.map((prompt, index) => `<label class="field">${esc(prompt)}<textarea id="note-${index}" maxlength="400">${esc(lesson.notes[index] || '')}</textarea></label>`).join('');
   const mission = MISSIONS[lesson.n];
-  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><h3>Дневник миссии</h3><p>Это не контрольная: баллы за дневник не ставятся. Напишите три ответа своими словами, и откроется блиц.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><h3>Дневник миссии</h3><p>Три короткие фразы своими словами. Баллов нет, но без них блиц не откроется.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
 }
 
 function theoryParts(html) {
@@ -2180,7 +2177,7 @@ function theoryHtml(lesson) {
 }
 
 function trainerHtml(lesson) {
-  const bank = `<p class="formula">Банк практики: ${Math.max(0, 45 - 10 * lesson.trainer.errors)} из 45. Ошибка снимает 10, сдать можно один раз.</p>`;
+  const bank = `<p class="formula">Баллы практики: ${Math.max(0, 45 - 10 * lesson.trainer.errors)}. Ошибка −10, сдача одна.</p>`;
   if (lesson.n === 1) return bank + trainer1(lesson);
   if (lesson.n === 2) return bank + trainer2(lesson);
   if (lesson.n === 3) return bank + trainer3(lesson);
@@ -2501,7 +2498,7 @@ function trainer4(lesson) {
       return `<button class="btn chip ${on ? 'is-on' : ''}" type="button" data-act="route-toggle" data-id="${edge.id}">${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])} · ${edge.w} км</button>`;
     }).join('');
     const built = routePath(graph);
-    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="fine">Жёлтое кольцо — обязательная остановка. Нажми дороги на карте.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать маршрут</button></article>`;
+    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="fine">Обязательная остановка: ${esc(graph.names[graph.via])}. Жёлтое кольцо на карте. Нажми дороги.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать маршрут</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   const wrote = graph.pathGiven;
