@@ -2116,7 +2116,7 @@ function theoryHtml(lesson) {
     : '';
   const note = card.solved
     ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
-    : `<p class="js-readgate fine">${locked ? `Сначала прочитайте мысль: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
+    : `<div class="timer-track"><span data-read-bar style="width:${Math.round((1 - left / READ_MS) * 100)}%"></span></div><p class="js-readgate fine">${locked ? `Сначала прочитайте мысль: ${Math.ceil(left / 1000)} с` : 'Выберите ответ'}</p>`;
   const mission = MISSIONS[lesson.n];
   const parts = theoryParts(card.body);
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
@@ -3400,7 +3400,9 @@ function readGateTick() {
   if (!card || card.solved) return;
   const left = Math.max(0, READ_MS - (Date.now() - lesson.theory.cardStartedAt));
   const label = document.querySelector('.js-readgate');
-  if (label) label.textContent = left > 0 ? `Прочитайте теорию: ${Math.ceil(left / 1000)} с` : 'Выберите ответ';
+  const bar = document.querySelector('[data-read-bar]');
+  if (bar) bar.style.width = `${Math.round((1 - left / READ_MS) * 100)}%`;
+  if (label) label.textContent = left > 0 ? `Сначала прочитайте мысль: ${Math.ceil(left / 1000)} с` : 'Выберите ответ';
   document.querySelectorAll('[data-act="theory-pick"]').forEach((button) => {
     const index = Number(button.dataset.i);
     button.disabled = left > 0 || card.wrong.indexOf(index) >= 0;
