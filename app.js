@@ -1748,11 +1748,11 @@ function gapLine(rows) {
   return parts.length ? parts.join('\n') : 'Среди приславших все четыре урока сданы.';
 }
 
-function openGaps(rows) {
-  return (rows || []).filter((row) => [1, 2, 3, 4].some((n) => {
+function doneCounts(rows) {
+  return [1, 2, 3, 4].map((n) => (rows || []).filter((row) => {
     const lesson = lessonByNumber(row, n);
-    return !lesson || !lesson.done;
-  })).length;
+    return lesson && lesson.done;
+  }).length);
 }
 
 function gapBlocks(rows) {
@@ -1830,10 +1830,10 @@ function paintLoadedJournal(group) {
     const role = item.result.access.role === 'master'
       ? 'ведущий, все группы'
       : (item.result.access.role === 'teacher' ? 'группы ' + item.result.access.groups.join(', ') : 'нет доступа');
-    const gaps = openGaps(rows);
-    blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)} · ${esc(role)} · работ ${rows.length}</h3>${journalCards(rows)}</section>`);
+    const counts = doneCounts(rows);
+    blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)} · ${esc(role)} · работ ${rows.length}</h3><p class="fine">Сдали: урок 1 — ${counts[0]}, урок 2 — ${counts[1]}, урок 3 — ${counts[2]}, урок 4 — ${counts[3]}.</p>${journalCards(rows)}</section>`);
     sheets.push(journalTsv(item.name + (group ? ' группа ' + group : ''), rows));
-    index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(item.name)}<small>${rows.length} · пробелы ${gaps}</small></button>`);
+    index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(item.name)}<small>${rows.length} чел. · ${counts.join('/')}</small></button>`);
   });
   if (group && quiet.length) sheets.unshift('В группе ' + group + ' нет работ: ' + quiet.join(', '));
   lastJournalText = sheets.join('\n\n');
@@ -1842,7 +1842,7 @@ function paintLoadedJournal(group) {
     const label = id ? 'Группа ' + id : 'Все группы';
     return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="journal-group" data-group="${id}">${label}</button>`;
   }).join('');
-  const menu = index.length > 1 ? `<div class="parallel-index">${index.join('')}</div>` : '';
+  const menu = index.length > 1 ? `<p class="fine">На кнопке класса четыре числа: сколько учеников сдали уроки 1, 2, 3 и 4.</p><div class="parallel-index">${index.join('')}</div>` : '';
   const quietLine = group && quiet.length ? `<p class="fine">В группе ${esc(group)} пока нет работ: ${esc(quiet.join(', '))}.</p>` : '';
   const node = $('journal-out');
   if (node) {
