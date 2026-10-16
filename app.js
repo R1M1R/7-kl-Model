@@ -460,6 +460,12 @@ function validRoom(value) {
   return room.length >= 4 && room.length <= 40;
 }
 
+const PARALLEL_LETTERS = ['А', 'Б', 'В', 'Г', 'Л', 'Д', 'Е', 'Ж', 'И', 'Н'];
+
+function parallelClassNames() {
+  return PARALLEL_LETTERS.map((letter) => '7' + letter);
+}
+
 function roomFromClass(value) {
   const raw = String(value || '').trim().replace(/^class-/i, '');
   const normalized = normClass(raw);
@@ -1689,13 +1695,16 @@ function teacherJournalSection() {
     </article>`;
   }
   return `<article class="card"><h3>Журнал всего класса</h3>
-    <p>Автор и ведущий: Усеинов Эмир Рустемович. Письмо на почту не нужно: введите почту, пароль и класс, затем откройте журнал.</p>
+    <p>Автор и ведущий: Усеинов Эмир Рустемович. Десять параллелей 7 класса открываются отсюда. Письмо на почту не нужно.</p>
     <div class="stack">
       <label class="field">Почта<input id="teacher-email" autocomplete="username" value="${esc(teacherEmailSaved())}" placeholder="Только для учителя"></label>
       <label class="field">Пароль<input id="teacher-pass" type="password" autocomplete="current-password"></label>
-      <label class="field">Класс учеников<input id="teacher-room" value="${esc(state.student ? state.student.className : String(state.roomCode || '').replace(/^class-/, ''))}" placeholder="7А" autocapitalize="characters"></label>
-      <button class="btn btn-primary" type="button" data-act="teacher-journal">Открыть журнал</button>
-      <button class="btn btn-ghost" type="button" data-act="teacher-register">Закрепить меня ведущим этого класса</button>
+      <p class="eyebrow">Параллели</p>
+      <div class="parallel-picks">${parallelClassNames().map((name) => `<button class="btn btn-ghost" type="button" data-act="teacher-parallel" data-class="${esc(name)}">${esc(name)}</button>`).join('')}</div>
+      <button class="btn btn-primary" type="button" data-act="teacher-all">Открыть все параллели</button>
+      <button class="btn btn-ghost" type="button" data-act="teacher-claim-all">Закрепить меня ведущим всех параллелей</button>
+      <label class="field">Или один класс<input id="teacher-room" value="${esc(state.student ? state.student.className : '')}" placeholder="7А" autocapitalize="characters"></label>
+      <button class="btn btn-ghost" type="button" data-act="teacher-journal">Открыть этот класс</button>
       <button class="btn btn-ghost" type="button" data-act="teacher-logout">Выйти из входа учителя</button>
       <details class="rules">
         <summary>Доступ коллеги и письмо для пароля</summary>
@@ -1726,7 +1735,8 @@ function journalCards(rows) {
       const photo = item.photoUrl ? `<a href="${esc(item.photoUrl)}" target="_blank" rel="noopener">Открыть фото</a><img class="hw-photo" alt="Фото домашнего задания ${item.n}" src="${esc(item.photoUrl)}">` : '';
       return `<h3>ДЗ ${item.n}</h3>${text}${photo}`;
     }).join('');
-    return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, ${esc(row.className)}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
+    const group = row.groupId ? `, группа ${row.groupId}` : '';
+    return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, ${esc(row.className)}${esc(group)}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
   }).join('');
 }
 
@@ -2810,31 +2820,47 @@ function handleAct(act, btn) {
     }).catch((error) => toast(teacherErrorText(error)));
     return;
   }
-  if (act === 'teacher-journal') {
+  if (act === 'teacher-journal' || act === 'teacher-parallel' || act === 'teacher-all' || act === 'teacher-claim-all') {
     const email = $('teacher-email').value.trim();
     const password = $('teacher-pass').value;
-    const room = roomFromClass($('teacher-room').value);
     const out = $('journal-out');
-    if (!validRoom(room)) { out.innerHTML = '<p class="field-error">Напишите класс так же, как ученики: 7А.</p>'; return; }
-    out.innerHTML = '<p class="fine">Открываю журнал…</p>';
+    const names = act === 'teacher-parallel'
+      ? [btn.dataset.class]
+      : (act === 'teacher-journal' ? [($('teacher-room').value || '').trim()] : parallelClassNames());
+    if (names.some((name) => !validRoom(roomFromClass(name)))) {
+      out.innerHTML = '<p class="field-error">Нужен класс, например 7А.</p>';
+      return;
+    }
+    out.innerHTML = '<p class="fine">Открываю параллели…</p>';
     const session = (email && password)
       ? LabCloud.teacherLogin(email, password).then((user) => {
-        try { localStorage.setItem('digitallab7-teacher-email', email); } catch (error) { /* почта только для удобства на этом телефоне */ }
+        try { localStorage.setItem('digitallab7-teacher-email', email); } catch (error) { /* почта только на этом телефоне */ }
         return user;
       })
       : LabCloud.currentTeacher().then((user) => {
         if (!user) throw new Error('Первый раз на этом телефоне нужны почта и пароль.');
         return user;
       });
-    session.then(() => LabCloud.teacherJournal(room)).then((result) => {
-      const node = $('journal-out');
-      if (!node) return;
-      if (result.access.role === 'none') {
-        node.innerHTML = `<p class="field-error">Доступ к группам ещё не выдан. Код доступа для ведущего: ${esc(result.access.uid)}</p>`;
-        return;
+    session.then(async () => {
+      if (act === 'teacher-claim-all') {
+        for (const name of parallelClassNames()) {
+          try {
+            await LabCloud.claimMaster(roomFromClass(name), 'Усеинов Эмир Рустемович');
+          } catch (error) {
+            // Остальные параллели закрепляются даже если одна уже занята.
+          }
+        }
       }
-      const role = result.access.role === 'master' ? 'Ведущий, все группы' : `Группы: ${result.access.groups.join(', ')}`;
-      node.innerHTML = `<p class="ok-text">${esc(role)}. Работ: ${result.rows.length}. Ваш код доступа: ${esc(result.access.uid)}</p>` + journalCards(result.rows);
+      const blocks = [];
+      for (const name of (act === 'teacher-claim-all' ? parallelClassNames() : names)) {
+        const result = await LabCloud.teacherJournal(roomFromClass(name));
+        const role = result.access.role === 'master'
+          ? 'ведущий, все группы'
+          : (result.access.role === 'teacher' ? 'группы ' + result.access.groups.join(', ') : 'нет доступа');
+        blocks.push(`<section class="subcard"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
+      }
+      const node = $('journal-out');
+      if (node) node.innerHTML = blocks.join('');
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
