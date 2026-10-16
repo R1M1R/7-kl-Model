@@ -1804,6 +1804,46 @@ function journalCards(rows) {
 }
 
 let lastJournalText = '';
+let lastJournalPack = [];
+
+function rowsForGroup(rows, group) {
+  if (!group) return rows || [];
+  return (rows || []).filter((row) => String(row.groupId || '') === String(group));
+}
+
+function paintLoadedJournal(group) {
+  const blocks = [];
+  const sheets = [];
+  const index = [];
+  lastJournalPack.forEach((item) => {
+    const anchor = 'journal-' + item.name;
+    if (item.error) {
+      blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)}</h3><p class="field-error">${esc(item.error)}</p></section>`);
+      sheets.push(item.name + '\n' + item.error);
+      index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(item.name)}<small>ошибка</small></button>`);
+      return;
+    }
+    const rows = rowsForGroup(item.result.rows, group);
+    const role = item.result.access.role === 'master'
+      ? 'ведущий, все группы'
+      : (item.result.access.role === 'teacher' ? 'группы ' + item.result.access.groups.join(', ') : 'нет доступа');
+    const gaps = openGaps(rows);
+    blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(item.name)} · ${esc(role)} · работ ${rows.length}</h3>${journalCards(rows)}</section>`);
+    sheets.push(journalTsv(item.name + (group ? ' группа ' + group : ''), rows));
+    index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(item.name)}<small>${rows.length} · пробелы ${gaps}</small></button>`);
+  });
+  lastJournalText = sheets.join('\n\n');
+  const filters = ['', '1', '2', '3'].map((id) => {
+    const on = String(group || '') === id;
+    const label = id ? 'Группа ' + id : 'Все группы';
+    return `<button class="btn ${on ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="journal-group" data-group="${id}">${label}</button>`;
+  }).join('');
+  const menu = lastJournalPack.length > 1 ? `<div class="parallel-index">${index.join('')}</div>` : '';
+  const node = $('journal-out');
+  if (node) {
+    node.innerHTML = `<div class="group-picks">${filters}</div>${menu}<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>${blocks.join('')}`;
+  }
+}
 
 function journalTsv(title, rows) {
   const sorted = (rows || []).slice().sort((a, b) => String(a.groupId || '').localeCompare(String(b.groupId || ''))
@@ -2821,6 +2861,11 @@ function handleAct(act, btn) {
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
+  if (act === 'journal-group') {
+    if (!lastJournalPack.length) { toast('Сначала откройте журнал.'); return; }
+    paintLoadedJournal(btn.dataset.group || '');
+    return;
+  }
   if (act === 'copy-journal') {
     if (!lastJournalText) { toast('Сначала откройте журнал.'); return; }
     copyText(lastJournalText);
@@ -2945,31 +2990,16 @@ function handleAct(act, btn) {
           }
         }
       }
-      const blocks = [];
-      const sheets = [];
-      const index = [];
+      const pack = [];
       for (const name of (act === 'teacher-claim-all' ? parallelClassNames() : names)) {
-        const anchor = 'journal-' + name;
         try {
-          const result = await LabCloud.teacherJournal(roomFromClass(name));
-          const role = result.access.role === 'master'
-            ? 'ведущий, все группы'
-            : (result.access.role === 'teacher' ? 'группы ' + result.access.groups.join(', ') : 'нет доступа');
-          const gaps = openGaps(result.rows);
-          blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(name)} · ${esc(role)} · работ ${result.rows.length}</h3>${journalCards(result.rows)}</section>`);
-          sheets.push(journalTsv(name, result.rows));
-          index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(name)}<small>${result.rows.length} · пробелы ${gaps}</small></button>`);
+          pack.push({ name, result: await LabCloud.teacherJournal(roomFromClass(name)) });
         } catch (error) {
-          const text = teacherErrorText(error);
-          blocks.push(`<section class="subcard" id="${esc(anchor)}"><h3>${esc(name)}</h3><p class="field-error">${esc(text)}</p></section>`);
-          sheets.push(name + '\n' + text);
-          index.push(`<button class="btn btn-ghost" type="button" data-act="jump-journal" data-id="${esc(anchor)}">${esc(name)}<small>ошибка</small></button>`);
+          pack.push({ name, error: teacherErrorText(error) });
         }
       }
-      lastJournalText = sheets.join('\n\n');
-      const menu = names.length > 1 ? `<div class="parallel-index">${index.join('')}</div>` : '';
-      const node = $('journal-out');
-      if (node) node.innerHTML = menu + '<button class="btn btn-primary" type="button" data-act="copy-journal">Скопировать сводку в таблицу</button>' + blocks.join('');
+      lastJournalPack = pack;
+      paintLoadedJournal('');
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
