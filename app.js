@@ -2174,10 +2174,13 @@ function goalHtml(lesson) {
 
 function notesHtml(lesson) {
   if (!lesson.notes) lesson.notes = ['', '', ''];
+  const step = Math.max(0, Math.min(2, lesson.noteStep || 0));
   const prompts = MISSIONS[lesson.n].notes;
-  const fields = prompts.map((prompt, index) => `<label class="field">${esc(prompt)}<textarea id="note-${index}" maxlength="400">${esc(lesson.notes[index] || '')}</textarea></label>`).join('');
   const mission = MISSIONS[lesson.n];
-  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><h3>Дневник миссии</h3><p>Три короткие фразы своими словами. Баллов нет, но без них блиц не откроется.</p>${fields}<button class="btn btn-primary" type="button" data-act="notes-save">Открыть блиц</button></article>`;
+  const dots = [0, 1, 2].map((index) => `<i class="${index < step ? 'is-done' : ''} ${index === step ? 'is-now' : ''}"></i>`).join('');
+  const last = step === 2;
+  const back = step > 0 ? '<button class="btn btn-ghost" type="button" data-act="note-back">Назад</button>' : '<span></span>';
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Ответ ${step + 1} из 3">${dots}</div><h3>Дневник · ${step + 1} из 3</h3><p class="fine">Короткая фраза своими словами. Баллов нет, но без трёх ответов блиц не откроется.</p><label class="field">${esc(prompts[step])}<textarea id="note-now" maxlength="400">${esc(lesson.notes[step] || '')}</textarea></label><div class="btn-row">${back}<button class="btn btn-primary" type="button" data-act="notes-save">${last ? 'Открыть блиц' : 'Дальше'}</button></div></article>`;
 }
 
 function theoryParts(html) {
@@ -3836,17 +3839,33 @@ function handleAct(act, btn) {
     render({ toTop: true });
     return;
   }
+  if (act === 'note-back' && lesson && lesson.phase === 'notes') {
+    if (!lesson.notes) lesson.notes = ['', '', ''];
+    const step = Math.max(0, Math.min(2, lesson.noteStep || 0));
+    const node = $('note-now');
+    if (node) lesson.notes[step] = node.value.trim();
+    if (step > 0) lesson.noteStep = step - 1;
+    save();
+    render();
+    return;
+  }
   if (act === 'notes-save') {
     if (lesson.phase !== 'notes') return;
-    const notes = [0, 1, 2].map((index) => {
-      const node = $('note-' + index);
-      return node ? node.value.trim() : '';
-    });
-    if (notes.some((text) => !isMeaningful(text, 10))) {
-      toast('В каждом ответе нужны хотя бы два слова своими словами.');
+    if (!lesson.notes) lesson.notes = ['', '', ''];
+    const step = Math.max(0, Math.min(2, lesson.noteStep || 0));
+    const node = $('note-now');
+    const text = node ? node.value.trim() : '';
+    if (!isMeaningful(text, 10)) {
+      toast('Нужны хотя бы два слова своими словами.');
       return;
     }
-    lesson.notes = notes;
+    lesson.notes[step] = text;
+    if (step < 2) {
+      lesson.noteStep = step + 1;
+      save();
+      render();
+      return;
+    }
     lesson.notesDone = true;
     if (!lesson.blitz.questions.length) attachBlitz(lesson);
     lesson.phase = 'blitz';
