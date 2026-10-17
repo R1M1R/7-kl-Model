@@ -228,6 +228,7 @@ img, svg { max-width: 100%; }
 .grade-4 { color: #042028; background: var(--cyan); border-color: transparent; }
 .grade-3 { color: #2a1c00; background: var(--amber); border-color: transparent; }
 .grade-2 { color: #fff; background: var(--bad); border-color: transparent; }
+.badge.is-live { color: #2a1c00; background: var(--amber); border-color: transparent; font-size: 0.78rem; }
 
 .steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin-bottom: 10px; }
 .step {

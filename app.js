@@ -1524,9 +1524,26 @@ function renderLessons() {
       status = `${lesson.total}/100 · ${fmtDuration(lesson.timeMs)}`;
       badge = `<span class="badge grade-${lesson.grade}">${lesson.grade}</span>`;
       action = 'Открыть';
+    } else if (lesson && lesson.phase === 'lab') {
+      const got = lesson.lab ? (lesson.lab.correct || 0) : 0;
+      status = got >= 8 ? 'Модели до конца получаса' : 'Закрепление ' + got + '/8';
+      badge = '<span class="badge is-live">идёт</span>';
+      action = 'Продолжить';
+    } else if (lesson && lesson.phase === 'blitz') {
+      status = 'Блиц';
+      badge = '<span class="badge is-live">идёт</span>';
+      action = 'Продолжить';
+    } else if (lesson && lesson.phase === 'notes') {
+      status = 'Дневник';
+      badge = '<span class="badge is-live">идёт</span>';
+      action = 'Продолжить';
+    } else if (lesson && lesson.phase === 'theory') {
+      status = 'Теория';
+      badge = '<span class="badge is-live">идёт</span>';
+      action = 'Продолжить';
     } else if (started) {
-      status = 'Идёт сейчас';
-      badge = '<span class="pill">игра</span>';
+      status = 'Практика';
+      badge = '<span class="badge is-live">идёт</span>';
       action = 'Продолжить';
     }
     const mission = MISSIONS[n];
@@ -1853,7 +1870,7 @@ function gapBlocks(rows) {
 }
 
 function gradeMark(lesson) {
-  if (!lesson || !lesson.done) return lesson && lesson.working ? '<span class="badge">идёт</span>' : '–';
+  if (!lesson || !lesson.done) return lesson && lesson.working ? '<span class="badge is-live">идёт</span>' : '–';
   if (!lesson.grade) return '–';
   return `<span class="badge grade-${lesson.grade}">${lesson.grade}</span>`;
 }
@@ -2774,12 +2791,22 @@ function labTick() {
   if (next) next.classList.toggle('is-hidden', !labReady(lesson));
 }
 
+function markToySeen(lesson, n) {
+  if (!lesson.toy) lesson.toy = {};
+  if (!lesson.toy.seen) lesson.toy.seen = {};
+  lesson.toy.seen[n] = true;
+}
+
 function playgroundHtml(lesson) {
   if (!lesson.toy) lesson.toy = {};
   const pick = lesson.toy.which || lesson.n;
   const names = ['Цель', 'Дрон', 'Условие', 'Курьер'];
+  const seen = lesson.toy.seen || {};
+  const dots = [1, 2, 3, 4].map((n) => `<i class="${seen[n] ? 'is-done' : ''}"></i>`).join('');
+  const all = [1, 2, 3, 4].every((n) => seen[n]);
   const tabs = [1, 2, 3, 4].map((n) => `<button class="btn ${pick === n ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-which" data-n="${n}">${names[n - 1]}</button>`).join('');
-  return `<div class="toy-tabs">${tabs}</div>${toyHtml({ n: pick, toy: lesson.toy, seed: lesson.seed })}`;
+  const mood = all ? '<p class="toy-mood is-warm">Все четыре модели потрогали.</p>' : '<p class="fine">Потрогай все четыре модели. Баллы не меняются.</p>';
+  return `<div class="dots" aria-label="Модели">${dots}</div>${mood}<div class="toy-tabs">${tabs}</div>${toyHtml({ n: pick, toy: lesson.toy, seed: lesson.seed })}`;
 }
 
 function resultHtml(lesson) {
@@ -3607,6 +3634,7 @@ function handleAct(act, btn) {
       const pick = Number(btn.dataset.n);
       if (pick >= 1 && pick <= 4) lesson.toy.which = pick;
     }
+    markToySeen(lesson, lesson.toy.which || lesson.n);
     if (act === 'toy-goal') lesson.toy.goal = btn.dataset.goal === 'look' ? 'look' : 'fuel';
     if (act === 'toy-branch') lesson.toy.branch = btn.dataset.branch === 'no' ? 'no' : 'yes';
     if (act === 'toy-road') lesson.toy.road = btn.dataset.road;
