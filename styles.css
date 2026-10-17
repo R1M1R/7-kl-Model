@@ -463,6 +463,8 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .matrix-fit th, .matrix-fit td { padding: 8px 2px; }
 .matrix-fit td.km { color: #041018; font-weight: 800; font-size: 1rem; background: #ffc14d; }
 .toy { border-top: 4px solid var(--amber); }
+.toy-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px; }
+.toy-tabs .btn { min-height: 44px; padding: 8px 4px; font-size: 0.78rem; }
 .toy-object { margin: 10px 0; font-size: 1.6rem; font-weight: 800; }
 .toy-traits, .toy-roads { display: grid; gap: 8px; }
 .toy-chip { padding: 10px 12px; border-radius: 14px; background: #0d1a30; color: var(--muted); font-weight: 800; }

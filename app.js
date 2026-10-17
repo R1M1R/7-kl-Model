@@ -1599,7 +1599,13 @@ function progressPayload() {
   const lessons = [1, 2, 3, 4].map((n) => {
     const lesson = state.lessons[n];
     if (!lesson || lesson.phase === 'goal' || !lesson.startedAt) return { n, done: false };
-    if (lesson.phase !== 'done') return { n, done: false, working: true };
+    if (lesson.phase !== 'done') return {
+      n,
+      done: false,
+      working: true,
+      minutes: Math.max(0, Math.round((lesson.timeMs || 0) / 60000)),
+      labCorrect: lesson.lab ? (lesson.lab.correct || 0) : 0
+    };
     return {
       n,
       done: true,
@@ -1872,7 +1878,15 @@ function journalCards(rows) {
     const points = (row.lessons || []).reduce((sum, lesson) => sum + (lesson.done ? (lesson.total || 0) : 0), 0);
     const hw = (row.homework || []).filter((item) => item.done).length;
     const also = extraGroups.length ? `<span>ещё есть запись в группе ${esc(extraGroups.join(', '))}</span>` : '';
-    return `${band}<article class="journal-person ${hasTwo ? 'is-weak' : ''}"><div><b>${esc(row.lastName)} ${esc(row.firstName)}</b><span>группа ${esc(group)}</span></div>${also}<div class="journal-marks">${marks}</div><p>${points} баллов · ДЗ ${hw}/4</p></article>`;
+    const live = [1, 2, 3, 4].map((n) => {
+      const item = lessonByNumber(row, n);
+      if (!item || item.done || !item.working) return '';
+      const bits = [];
+      if (item.minutes != null) bits.push(item.minutes + ' мин');
+      if (item.labCorrect != null) bits.push('примеры ' + item.labCorrect + '/8');
+      return 'урок ' + n + ': ' + (bits.join(', ') || 'идёт');
+    }).filter(Boolean).join(' · ');
+    return `${band}<article class="journal-person ${hasTwo ? 'is-weak' : ''}"><div><b>${esc(row.lastName)} ${esc(row.firstName)}</b><span>группа ${esc(group)}</span></div>${also}<div class="journal-marks">${marks}</div><p>${points} баллов · ДЗ ${hw}/4${live ? ' · ' + esc(live) : ''}</p></article>`;
   }).join('');
   const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
@@ -2737,7 +2751,7 @@ function labHtml(lesson) {
   const cheer = streak >= 3 ? '<p class="toy-mood is-warm">Серия ' + streak + '. Так держать.</p>' : '';
   const hint = lesson.lab.miss != null && task.hint ? `<p class="warn-text">${esc(task.hint)}</p>` : '';
   const gate = `<article class="card mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. ${lesson.lab.correct >= LAB_NEED ? 'Примеры готовы. Крутите модель, пока идёт урок.' : 'Урок занимает полчаса.'}</p><button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
-  if (lesson.lab.correct >= LAB_NEED) return gate + toyHtml(lesson);
+  if (lesson.lab.correct >= LAB_NEED) return gate + playgroundHtml(lesson);
   const body = task.kind === 'number'
     ? '<label class="field">Целое число<input id="lab-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="lab-num">Проверить</button>'
     : task.options.map((option, index) => `<button class="btn choice ${lesson.lab.miss === index ? 'is-wrong' : ''}" type="button" data-act="lab-pick" data-i="${index}">${esc(option)}</button>`).join('');
@@ -2760,6 +2774,14 @@ function labTick() {
   if (next) next.classList.toggle('is-hidden', !labReady(lesson));
 }
 
+function playgroundHtml(lesson) {
+  if (!lesson.toy) lesson.toy = {};
+  const pick = lesson.toy.which || lesson.n;
+  const names = ['Цель', 'Дрон', 'Условие', 'Курьер'];
+  const tabs = [1, 2, 3, 4].map((n) => `<button class="btn ${pick === n ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="toy-which" data-n="${n}">${names[n - 1]}</button>`).join('');
+  return `<div class="toy-tabs">${tabs}</div>${toyHtml({ n: pick, toy: lesson.toy, seed: lesson.seed })}`;
+}
+
 function resultHtml(lesson) {
   const mission = MISSIONS[lesson.n];
   return `<article class="card result-hero mission" style="--accent:${mission.hue}">${wmLayer()}<div class="content big-grade">
@@ -2771,7 +2793,7 @@ function resultHtml(lesson) {
       <p>${lesson.total} из 100</p>
       <p class="fine">Баллы уже уходят учителю сами. Код ниже — для сверки, его не нужно диктовать одноклассникам.</p>
     </div></article>
-    ${toyHtml(lesson)}
+    ${playgroundHtml(lesson)}
     <article class="card"><table class="breakdown">
       <tr><td>Теория</td><td>${lesson.theoryScore}/15</td></tr>
       <tr><td>Тренажёр</td><td>${lesson.trainerScore}/45</td></tr>
@@ -3578,9 +3600,13 @@ function handleAct(act, btn) {
     return;
   }
   const lesson = activeLesson();
-  if (act === 'toy-goal' || act === 'toy-branch' || act === 'toy-road') {
+  if (act === 'toy-which' || act === 'toy-goal' || act === 'toy-branch' || act === 'toy-road') {
     if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer' && lesson.phase !== 'lab')) return;
     if (!lesson.toy) lesson.toy = {};
+    if (act === 'toy-which') {
+      const pick = Number(btn.dataset.n);
+      if (pick >= 1 && pick <= 4) lesson.toy.which = pick;
+    }
     if (act === 'toy-goal') lesson.toy.goal = btn.dataset.goal === 'look' ? 'look' : 'fuel';
     if (act === 'toy-branch') lesson.toy.branch = btn.dataset.branch === 'no' ? 'no' : 'yes';
     if (act === 'toy-road') lesson.toy.road = btn.dataset.road;
