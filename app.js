@@ -2736,10 +2736,12 @@ function labHtml(lesson) {
   const streak = lesson.lab.streak || 0;
   const cheer = streak >= 3 ? '<p class="toy-mood is-warm">Серия ' + streak + '. Так держать.</p>' : '';
   const hint = lesson.lab.miss != null && task.hint ? `<p class="warn-text">${esc(task.hint)}</p>` : '';
+  const gate = `<article class="card mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. ${lesson.lab.correct >= LAB_NEED ? 'Примеры готовы. Крутите модель, пока идёт урок.' : 'Урок занимает полчаса.'}</p><button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
+  if (lesson.lab.correct >= LAB_NEED) return gate + toyHtml(lesson);
   const body = task.kind === 'number'
     ? '<label class="field">Целое число<input id="lab-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="lab-num">Проверить</button>'
     : task.options.map((option, index) => `<button class="btn choice ${lesson.lab.miss === index ? 'is-wrong' : ''}" type="button" data-act="lab-pick" data-i="${index}">${esc(option)}</button>`).join('');
-  return `<article class="card no-cheat mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. Урок занимает полчаса: примеры можно решать, пока идёт время.</p>${cheer}<p class="blitz-q">${esc(task.text)}</p>${hint}${body}<button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
+  return `<article class="card no-cheat mission quest-card"><h3>Пример</h3>${cheer}<p class="blitz-q">${esc(task.text)}</p>${hint}${body}</article>` + gate;
 }
 
 function labTick() {
@@ -3577,7 +3579,7 @@ function handleAct(act, btn) {
   }
   const lesson = activeLesson();
   if (act === 'toy-goal' || act === 'toy-branch' || act === 'toy-road') {
-    if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer')) return;
+    if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer' && lesson.phase !== 'lab')) return;
     if (!lesson.toy) lesson.toy = {};
     if (act === 'toy-goal') lesson.toy.goal = btn.dataset.goal === 'look' ? 'look' : 'fuel';
     if (act === 'toy-branch') lesson.toy.branch = btn.dataset.branch === 'no' ? 'no' : 'yes';
@@ -3964,7 +3966,7 @@ function boot() {
   document.body.addEventListener('input', (event) => {
     if (event.target.dataset.toySpeed) {
       const lesson = activeLesson();
-      if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer')) return;
+      if (!lesson || (lesson.phase !== 'done' && lesson.phase !== 'trainer' && lesson.phase !== 'lab')) return;
       const speed = Number(event.target.value);
       if (!lesson.toy) lesson.toy = {};
       lesson.toy.speed = speed;
