@@ -116,6 +116,29 @@ const MISSIONS = [
   }
 ];
 
+const THEORY_ASK = {
+  'Объект и модель': 'Что здесь модель, а не сам объект?',
+  'Существенные признаки': 'Что нужно, чтобы посчитать расход топлива?',
+  'Материальные и информационные': 'Что здесь информационная модель?',
+  'Формализация': 'Что здесь формализация?',
+  'Когда модель годится': 'Когда модель годится?',
+  'Математическая модель': 'Что здесь математическая модель?',
+  'Что задают и что получают': 'Что в формуле V = V₀ + q·t является результатом?',
+  'Как читать график': 'Что означает точка (3; 150) на графике пути?',
+  'Крутизна прямой': 'У какого дрона график круче?',
+  'Какие условия входят в модель': 'Как правильно посчитать путь дрона против ветра?',
+  'Что такое алгоритм': 'Что из этого НЕ алгоритм?',
+  'Фигуры блок-схемы': 'В какой фигуре записывают условие?',
+  'Ветвление': 'Что происходит при ветвлении?',
+  'Цикл': '«Пока уроки не закончились — переходи к следующему». Что это?',
+  'Формализация задачи': 'С чего начинают формализацию?',
+  'Таблица «объект — свойство»': 'Таблица учеников: имя, рост, класс. Что это?',
+  'Таблица «объект — объект»': 'Таблица километров между городами. Что это?',
+  'Иерархия': 'Что здесь иерархия?',
+  'Граф и вес ребра': 'Что является весом ребра?',
+  'Кратчайший путь': 'Какой путь короче?'
+};
+
 const THEORY = {
   1: [
     {
@@ -2217,13 +2240,17 @@ function theoryHtml(lesson) {
   const recap = lesson.theory.index === 4 && card.solved
     ? `<div class="key-idea"><span>Возьмите в практику</span><p>Эти мысли понадобятся в задании. За список баллы не ставятся.</p><ul class="list-check">${META[lesson.n].bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul></div>`
     : '';
-  const note = card.solved
-    ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
+  const gate = card.solved
+    ? ''
     : `<div class="timer-track"><span data-read-bar style="width:${Math.round((1 - left / READ_MS) * 100)}%"></span></div><p class="play-count js-readgate">${locked ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Можно отвечать'}</p>`;
+  const why = card.solved
+    ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
+    : '';
   const mission = MISSIONS[lesson.n];
   const parts = theoryParts(card.body);
+  const ask = THEORY_ASK[card.title] || 'Выберите верный ответ.';
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div>${note}${options}${recap}${next}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div><p class="task-ask">${esc(ask)}</p>${gate}${options}${why}${recap}${next}</article>`;
 }
 
 function atDemo(lesson) {
@@ -2305,7 +2332,7 @@ function trainer1(lesson) {
     const action = trainer.task.submitted
       ? `${featureWhy}<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Баллы уже учтены.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
-    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}</p><div class="grid-2">${chips}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><p class="task-ask">Отметь только то, без чего цель не выполнить. Лишнее не нажимай.</p><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}</p><div class="grid-2">${chips}</div>${action}</article>`;
   }
   return classifyHtml(trainer);
 }
@@ -2460,7 +2487,8 @@ function trainer3(lesson) {
     const action = algo.orderLocked
       ? `${fixes}<p class="ok-text">Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
-    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p><p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${legend}${bank}<div class="flow">${slots}</div>${action}</article>`;
+    const how = algo.orderLocked ? '' : '<p class="task-ask">Нажми блок — он встанет в первый пустой шаг. Нажми шаг, чтобы убрать его.</p>';
+    return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p>${how}<p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${legend}${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
   if (!algo.traceLocked) {
     const branchReady = algo.traceBranch === 'yes' || algo.traceBranch === 'no';
