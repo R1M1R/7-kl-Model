@@ -1524,7 +1524,7 @@ function rulesHtml(learn) {
     <ul class="list-check">
       <li>Теория — до 15 баллов: 5 вопросов по 3. Балл только если ответ верный с первой попытки. Дальше без балла, но с пониманием.</li>
       <li>Тренажёр — 45 баллов. Каждая ошибка снимает 10. Сдать задание можно один раз.</li>
-      <li>Дальше 8 коротких примеров без оценки. Дневник откроется, когда они верны и урок идёт уже полчаса. Пока ждёте, можно крутить модели и решать ещё.</li>
+      <li>Дальше 8 коротких примеров без оценки. Дневник откроется, когда они верны и страница открыта уже полчаса. Свёрнутый телефон время не копит. Пока ждёте, можно крутить модели и решать ещё.</li>
       <li>Дневник миссии обязателен, но баллов не даёт. Он нужен, чтобы блиц открылся и учитель увидел ваши мысли.</li>
       <li>Блиц — 4 вопроса по 10 баллов, 45 секунд и одна попытка. На расчётных вопросах ответ быстрее 2 секунд не засчитывается.</li>
       <li>Уход с экрана во время тренажёра или блица фиксируется. Первый — предупреждение без штрафа. Дальше каждый следующий уход снимает 5 баллов: 2 ухода — минус 5, 3 — минус 10, и так до минус 20.</li>
@@ -1856,6 +1856,11 @@ function gapLine(rows) {
       const groups = Object.keys(byGroup).sort().map((group) => `гр. ${group}: ${byGroup[group].join(', ')}`).join('; ');
       return `Урок ${n} ${title} (${list.length}). ${groups}`;
     };
+    const touched = rows.some((row) => {
+      const lesson = lessonByNumber(row, n);
+      return lesson && (lesson.done || lesson.working);
+    });
+    if (!touched) return `Урок ${n}: ещё никто не открывал.`;
     const working = missing.filter((row) => {
       const lesson = lessonByNumber(row, n);
       return lesson && lesson.working;
@@ -2351,7 +2356,7 @@ function trainer1(lesson) {
       : '';
     const action = trainer.task.submitted
       ? `${featureWhy}<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Баллы уже учтены.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
-      : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
+      : `<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit" ${trainer.task.picked.length ? '' : 'disabled'}>Сдать выбор признаков</button>`;
     return `<article class="card no-cheat"><h3>Фильтр признаков</h3><p class="task-ask">Отметь только то, без чего цель не выполнить. Лишнее не нажимай. Можно несколько.</p><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}. Можно несколько.</p><div class="grid-2">${chips}</div>${action}</article>`;
   }
   return classifyHtml(trainer);
@@ -2418,7 +2423,7 @@ function trainer2(lesson) {
   const scenario = lesson.trainer.scenario;
   if (lesson.trainer.stage === 'formula') {
     const buttons = scenario.formulas.map((formula, index) => `<button class="btn choice ${scenario.formulaPick === index ? 'is-on' : ''}" type="button" data-act="formula-pick" data-i="${index}">${esc(formula.text)}</button>`).join('');
-    return `<article class="card no-cheat"><h3>Какая формула?</h3><p class="task-ask">Выбери одну формулу. Она должна считать то, о чём задача.</p><p>${esc(scenario.story)}</p><p class="play-count ${scenario.formulaPick == null ? '' : 'is-ready'}">${scenario.formulaPick == null ? 'Формула не выбрана' : 'Формула выбрана'}</p>${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
+    return `<article class="card no-cheat"><h3>Какая формула?</h3><p class="task-ask">Выбери одну формулу. Она должна считать то, о чём задача.</p><p>${esc(scenario.story)}</p><p class="play-count ${scenario.formulaPick == null ? '' : 'is-ready'}">${scenario.formulaPick == null ? 'Формула не выбрана' : 'Формула выбрана'}</p>${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit" ${scenario.formulaPick == null ? 'disabled' : ''}>Сдать формулу</button></article>`;
   }
   const sliders = Object.keys(scenario.sliders).map((key) => {
     const slider = scenario.sliders[key];
@@ -2427,7 +2432,7 @@ function trainer2(lesson) {
   const canvas = `<canvas class="plot" data-plot-live="1" data-ymax="${plotSpec(scenario).yMax}"></canvas>`;
   if (lesson.trainer.stage === 'calc') {
     const correct = scenario.formulas.find((formula) => formula.ok).text;
-    return `<article class="card no-cheat"><h3>Собери модель</h3><p class="task-ask">Крути ползунки, пока три числа условия не загорятся. Потом впиши число с графика. Верх шкалы — не ответ.</p><p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">${esc(correct)}</p>${modelPlay(scenario)}${canvas}${sliders}<label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать число с графика</button></article>`;
+    return `<article class="card no-cheat"><h3>Собери модель</h3><p class="task-ask">Крути ползунки, пока три числа условия не загорятся. Потом впиши число с графика. Верх шкалы — не ответ. Кнопка откроется, когда числа совпадут.</p><p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">${esc(correct)}</p>${modelPlay(scenario)}${canvas}${sliders}<label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit" data-need-sliders="1" ${slidersMatch(scenario) ? '' : 'disabled'}>Сдать число с графика</button></article>`;
   }
   if (lesson.trainer.stage === 'extra') {
     const mainSame = scenario.mainGiven === scenario.mainAnswer;
@@ -2508,7 +2513,7 @@ function trainer3(lesson) {
     const filledSlots = algo.slots.filter(Boolean).length;
     const action = algo.orderLocked
       ? `${fixes}<p class="ok-text">Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
-      : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
+      : `<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit" ${filledSlots === algo.slots.length ? '' : 'disabled'}>Сдать порядок блоков</button>`;
     const how = algo.orderLocked ? '' : '<p class="task-ask">Нажми блок — он встанет в первый пустой шаг. Нажми шаг, чтобы убрать его. В схеме все семь блоков, включая обе ветки.</p>';
     return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p>${how}<p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${legend}${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
@@ -2617,7 +2622,7 @@ function trainer4(lesson) {
   if (lesson.trainer.stage === 'edges') {
     const rows = graph.edges.map((edge) => `<label class="edge-row"><span>${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}</span><input class="bare-input" inputmode="numeric" data-edge="${edge.id}" value="${esc(graph.draft[edge.id] || '')}" placeholder="км"></label>`).join('');
     const filledRoads = graph.edges.filter((edge) => /^\d+$/.test(String(graph.draft[edge.id] || '').trim())).length;
-    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="task-ask">Найди дорогу в таблице: строка и столбец — пункты. Впиши то же число в поле этой дороги.</p><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${distanceTable(graph)}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
+    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="task-ask">Найди дорогу в таблице: строка и столбец — пункты. Впиши то же число в поле этой дороги.</p><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${distanceTable(graph)}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit" data-edge-submit ${filledRoads === graph.edges.length ? '' : 'disabled'}>Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
     const lines = graph.edges.map((edge) => {
@@ -2634,7 +2639,7 @@ function trainer4(lesson) {
       return `<button class="btn chip ${on ? 'is-on' : ''}" type="button" data-act="route-toggle" data-id="${edge.id}">${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])} · ${edge.w} км</button>`;
     }).join('');
     const built = routePath(graph);
-    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="task-ask">Собери один путь Дом → ${esc(graph.names[graph.via])} → Стадион. Жёлтое кольцо — обязательная остановка. Лишние дороги не включай.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать маршрут</button></article>`;
+    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="task-ask">Собери один путь Дом → ${esc(graph.names[graph.via])} → Стадион. Жёлтое кольцо — обязательная остановка. Лишние дороги не включай. Кнопка откроется, когда путь целый.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit" ${built ? '' : 'disabled'}>Сдать маршрут</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   const wrote = graph.pathGiven;
@@ -2865,7 +2870,7 @@ function labHtml(lesson) {
   const streak = lesson.lab.streak || 0;
   const cheer = streak >= 3 ? '<p class="toy-mood is-warm">Серия ' + streak + '. Так держать.</p>' : '';
   const hint = lesson.lab.miss != null && task.hint ? `<p class="warn-text">${esc(task.hint)}</p>` : '';
-  const gate = `<article class="card mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. ${lesson.lab.correct >= LAB_NEED ? 'Примеры готовы. Можно решить ещё или покрутить модели.' : 'Урок занимает полчаса.'}</p><button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
+  const gate = `<article class="card mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. ${lesson.lab.correct >= LAB_NEED ? 'Примеры готовы. Можно решить ещё или покрутить модели.' : 'Нужно ' + LAB_NEED + ' верных.'} Минуты идут, только пока эта страница открыта.</p><button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
   const ask = task.kind === 'number' ? 'Посчитай и впиши целое число.' : 'Нажми один ответ.';
   const body = task.kind === 'number'
     ? '<label class="field">Целое число<input id="lab-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="lab-num">Проверить</button>'
@@ -2886,7 +2891,7 @@ function labTick() {
   if (left) {
     const leftMin = Math.max(0, Math.ceil((LAB_MS - ms) / 60000));
     const solved = lesson.lab && lesson.lab.correct >= LAB_NEED;
-    left.textContent = (ms >= LAB_MS ? 'Полчаса набраны' : 'До получаса ещё ' + leftMin + ' мин') + (solved ? '. Примеры уже есть.' : '. Нужно ' + LAB_NEED + ' верных.');
+    left.textContent = (ms >= LAB_MS ? 'Полчаса набраны' : 'До получаса ещё ' + leftMin + ' мин') + (solved ? '. Примеры уже есть.' : '. Нужно ' + LAB_NEED + ' верных.') + ' Минуты идут, только пока эта страница открыта.';
   }
   if (next) next.classList.toggle('is-hidden', !labReady(lesson));
 }
@@ -3611,7 +3616,7 @@ function handleAct(act, btn) {
     out.innerHTML = '<p class="fine">Отправляю письмо…</p>';
     LabCloud.sendPasswordReset(email).then(() => {
       const node = $('journal-out');
-      if (node) node.innerHTML = '<p class="ok-text">Письмо отправлено. Задайте в нём пароль, затем вернитесь и нажмите «Закрепить меня ведущим этого класса».</p>';
+      if (node) node.innerHTML = '<p class="ok-text">Письмо отправлено. Задайте в нём пароль и нажмите «Закрепить меня ведущим всех параллелей».</p>';
     }).catch((error) => {
       const node = $('journal-out');
       if (node) node.innerHTML = `<p class="field-error">${esc(teacherErrorText(error))}</p>`;
@@ -4148,6 +4153,8 @@ function boot() {
         node.classList.toggle('is-on', item.value === item.target);
       });
       drawLivePlot();
+      const ready = document.querySelector('[data-need-sliders]');
+      if (ready) ready.disabled = !slidersMatch(lesson.trainer.scenario);
       save();
       return;
     }
@@ -4162,6 +4169,8 @@ function boot() {
         const filled = lesson.trainer.graph.edges.filter((edge) => /^\d+$/.test(String(lesson.trainer.graph.draft[edge.id] || '').trim())).length;
         counter.textContent = `Подписано ${filled} из ${lesson.trainer.graph.edges.length}`;
         counter.classList.toggle('is-ready', filled === lesson.trainer.graph.edges.length);
+        const submit = document.querySelector('[data-edge-submit]');
+        if (submit) submit.disabled = filled !== lesson.trainer.graph.edges.length;
       }
       save();
     }
