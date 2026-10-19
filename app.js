@@ -2242,9 +2242,9 @@ function theoryHtml(lesson) {
     : '';
   const gate = card.solved
     ? ''
-    : `<div class="timer-track"><span data-read-bar style="width:${Math.round((1 - left / READ_MS) * 100)}%"></span></div><p class="play-count js-readgate">${locked ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Можно отвечать'}</p>`;
+    : `<div class="timer-track"><span data-read-bar style="width:${Math.round((1 - left / READ_MS) * 100)}%"></span></div><p class="play-count js-readgate">${locked ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Нажми один ответ'}</p>`;
   const why = card.solved
-    ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно с первой попытки: 3 балла' : 'Балл за карточку: 0. Ход мысли сохранён'}</b><p>${esc(card.explain)}</p></div>`
+    ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно сразу: 3 балла' : 'Не с первой попытки: 0 баллов. Зелёный ответ — верный.'}</b><p>${esc(card.explain)}</p></div>`
     : '';
   const mission = MISSIONS[lesson.n];
   const parts = theoryParts(card.body);
@@ -2312,7 +2312,7 @@ function classifyHtml(trainer) {
   const count = locked ? `Ошибок: ${wrong.length}` : `Разобрано ${sorted} из ${items.length}`;
   const ready = locked ? wrong.length === 0 : sorted === items.length;
   const back = !locked && sorted ? '<p class="fine">Нажми карточку в стопке, если хочешь вернуть её.</p>' : '';
-  return `<article class="card no-cheat"><h3>Разложи модели</h3><p class="play-count ${ready ? 'is-ready' : ''}">${count}</p>${deck}${back}<div class="sort-bins">${pile('mat', 'Материальная')}${pile('inf', 'Информационная')}</div>${review}${action}</article>`;
+  return `<article class="card no-cheat"><h3>Разложи модели</h3><p class="task-ask">Можно потрогать — в голубую стопку. Только знаки — в фиолетовую.</p><p class="play-count ${ready ? 'is-ready' : ''}">${count}</p>${deck}${back}<div class="sort-bins">${pile('mat', 'Материальная')}${pile('inf', 'Информационная')}</div>${review}${action}</article>`;
 }
 
 function trainer1(lesson) {
@@ -2398,7 +2398,7 @@ function trainer2(lesson) {
   const scenario = lesson.trainer.scenario;
   if (lesson.trainer.stage === 'formula') {
     const buttons = scenario.formulas.map((formula, index) => `<button class="btn choice ${scenario.formulaPick === index ? 'is-on' : ''}" type="button" data-act="formula-pick" data-i="${index}">${esc(formula.text)}</button>`).join('');
-    return `<article class="card no-cheat"><h3>Какая формула?</h3><p>${esc(scenario.story)}</p><p class="play-count ${scenario.formulaPick == null ? '' : 'is-ready'}">${scenario.formulaPick == null ? 'Формула не выбрана' : 'Формула выбрана'}</p>${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
+    return `<article class="card no-cheat"><h3>Какая формула?</h3><p class="task-ask">Выбери одну формулу. Она должна считать то, о чём задача.</p><p>${esc(scenario.story)}</p><p class="play-count ${scenario.formulaPick == null ? '' : 'is-ready'}">${scenario.formulaPick == null ? 'Формула не выбрана' : 'Формула выбрана'}</p>${buttons}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="formula-submit">Сдать формулу</button></article>`;
   }
   const sliders = Object.keys(scenario.sliders).map((key) => {
     const slider = scenario.sliders[key];
@@ -2612,7 +2612,7 @@ function trainer4(lesson) {
       return `<button class="btn chip ${on ? 'is-on' : ''}" type="button" data-act="route-toggle" data-id="${edge.id}">${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])} · ${edge.w} км</button>`;
     }).join('');
     const built = routePath(graph);
-    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="fine">Обязательная остановка: ${esc(graph.names[graph.via])}. Жёлтое кольцо на карте. Нажми дороги.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать маршрут</button></article>`;
+    return `<article class="card no-cheat"><h3>Собери маршрут</h3><p class="task-ask">Собери один путь Дом → ${esc(graph.names[graph.via])} → Стадион. Жёлтое кольцо — обязательная остановка. Лишние дороги не включай.</p><p class="play-count ${built ? 'is-ready' : ''}">${esc(routeHint(graph))} · ${built ? built.len : routeSum(graph)} км</p>${roadSvg(graph, true)}<div class="grid-2">${picks}</div><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="path-submit">Сдать маршрут</button></article>`;
   }
   const best = shortestVia(buildAdj(graph.edges), 'A', graph.via, 'E');
   const wrote = graph.pathGiven;
@@ -4035,7 +4035,7 @@ function readGateTick() {
   const bar = document.querySelector('[data-read-bar]');
   if (bar) bar.style.width = `${Math.round((1 - left / READ_MS) * 100)}%`;
   if (label) {
-    label.textContent = left > 0 ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Можно отвечать';
+    label.textContent = left > 0 ? `Ответы откроются через ${Math.ceil(left / 1000)} с` : 'Нажми один ответ';
     label.classList.toggle('is-ready', left <= 0);
   }
   document.querySelectorAll('[data-act="theory-pick"]').forEach((button) => {
