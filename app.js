@@ -1325,8 +1325,8 @@ function validateGraphHw(graph) {
   if (graph.start === graph.end) return { ok: false, message: 'Начало и конец маршрута должны различаться.' };
   const idByName = {};
   nodes.forEach((name, index) => { idByName[name.toLowerCase()] = String(index); });
-  const parts = String(graph.path || '').split(/\s*(?:→|->|—|–)\s*|\s+-\s+/).map((part) => part.trim()).filter(Boolean);
-  if (parts.length < 2) return { ok: false, message: 'Запишите путь через дефис: пункт - пункт - пункт.' };
+  const parts = String(graph.path || '').split(/\s*(?:→|->|—|–|-)\s*/).map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return { ok: false, message: 'Запишите путь через дефис: Дом - Школа - Стадион.' };
   const ids = parts.map((part) => idByName[part.toLowerCase()]);
   if (ids.some((id) => id == null)) return { ok: false, message: 'В пути есть название, которого нет среди вершин.' };
   if (ids[0] !== String(graph.start) || ids[ids.length - 1] !== String(graph.end)) {
@@ -1341,7 +1341,7 @@ function validateGraphHw(graph) {
   if (Number(graph.length) !== length) return { ok: false, message: `Сумма вашего пути равна ${length}. Проверьте длину.` };
   const best = allSimplePaths(adj, String(graph.start), String(graph.end)).sort((a, b) => a.len - b.len)[0];
   if (!best) return { ok: false, message: 'Между выбранными пунктами нет пути — добавьте рёбра.' };
-  if (length !== best.len) return { ok: false, message: `Путь существует, но есть маршрут короче. Ваша сумма: ${length}.` };
+  if (length !== best.len) return { ok: false, message: `Этот путь ${length} км, а короче можно за ${best.len} км. Найдите эту цепочку.` };
   return { ok: true, message: '' };
 }
 
@@ -1938,7 +1938,7 @@ function journalCards(rows) {
   }).join('');
   const texts = sorted.map((row) => {
     const lessons = (row.lessons || []).map((lesson) => {
-      const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : (lesson.working ? `Урок ${lesson.n}: ещё идёт` : `Урок ${lesson.n}: не начат`);
+      const head = lesson.done ? `Урок ${lesson.n}: ${lesson.grade} (${lesson.total}/100), код ${lesson.code}, уходы ${lesson.focus}` : (lesson.working ? `Урок ${lesson.n}: ещё идёт, ${lesson.stage || 'в уроке'}` : `Урок ${lesson.n}: не начат`);
       const notes = (lesson.notes || []).filter(Boolean).map((line, index) => `дневник ${index + 1}: ${line}`).join('\n');
       return notes ? `${head}\n${notes}` : head;
     }).join('\n');
@@ -1958,11 +1958,11 @@ function journalCards(rows) {
       now.push(row.lastName + ' ' + row.firstName + ' · урок ' + n + ', ' + (item.stage || 'идёт'));
     });
   });
-  const nowBlock = now.length ? `<p class="ok-text">Сейчас в уроке (${now.length}): ${esc(now.join('; '))}.</p>` : '';
+  const nowBlock = now.length ? `<div class="journal-now"><p class="ok-text">Сейчас в уроке: ${now.length}</p><ul class="list-check">${now.map((line) => `<li>${esc(line)}</li>`).join('')}</ul></div>` : '';
   return `${nowBlock}<p class="fine">Учеников ${sorted.length}. С оценкой хотя бы за один урок: ${sorted.filter((row) => lessonList(row).some((lesson) => lesson.done)).length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
+    ${gaps ? `<details class="rules"><summary>Кто ещё не сдал урок</summary>${gaps}</details>` : ''}
     <div class="journal-list">${body}</div>
     ${weakLine(sorted) ? `<p class="warn-text">${esc(weakLine(sorted))}</p>` : ''}
-    ${gaps ? `<details class="rules"><summary>Кто ещё не сдал урок</summary>${gaps}</details>` : ''}
     <details class="rules"><summary>Тексты дневников и ДЗ</summary>${texts}</details>`;
 }
 
@@ -2140,7 +2140,7 @@ function tableEditor(hw) {
         return fieldInput(propName || `Свойство ${col + 1}`, `4.table.cells.${row}.${col}`, cell, false, 'Значение');
       }).join('')}
     </section>`).join('');
-  return `<p class="fine">Сначала назовите три свойства. Затем для каждого из четырёх объектов заполните эти свойства. Это модель «объект — свойство».</p><div class="stack">${props}</div>${cards}`;
+  return `<p class="task-ask">Три свойства и четыре объекта. Пример: свойства Рост, Класс, Хобби. Объект Аня: 150, 7А, шахматы.</p><div class="stack">${props}</div>${cards}`;
 }
 
 function selectOptions(nodes, selected) {
@@ -2149,20 +2149,21 @@ function selectOptions(nodes, selected) {
 
 function graphEditor(hw) {
   const graph = hw.graph;
-  const nodes = graph.nodes.map((node, index) => fieldInput(`Вершина ${index + 1}`, `4.graph.nodes.${index}`, node)).join('');
+  const placeNames = ['Дом', 'Школа', 'Парк', 'Стадион'];
+  const nodes = graph.nodes.map((node, index) => fieldInput(`Вершина ${index + 1}`, `4.graph.nodes.${index}`, node, false, placeNames[index] || 'Пункт')).join('');
   const edges = graph.edges.map((edge, index) => `<div class="edge-block">
       <p class="fine">Ребро ${index + 1}</p>
       <label class="field">Откуда<select data-bind="4.graph.edges.${index}.a">${selectOptions(graph.nodes, edge.a)}</select></label>
       <label class="field">Куда<select data-bind="4.graph.edges.${index}.b">${selectOptions(graph.nodes, edge.b)}</select></label>
       <label class="field">Вес, км<input inputmode="numeric" data-bind="4.graph.edges.${index}.w" value="${esc(edge.w)}" placeholder="км"></label>
     </div>`).join('');
-  return `<p class="fine">Четыре пункта, не меньше четырёх рёбер и защита: кратчайший путь и его длина.</p>${nodes}
+  return `<p class="task-ask">Четыре пункта и дороги с километрами. Путь пишите так: Дом - Школа - Стадион. Подойдёт и без пробелов: Дом-Школа-Стадион.</p>${nodes}
     <h3>Рёбра</h3>${edges}
     <button class="btn btn-ghost" type="button" data-act="hw-add-edge">Добавить ребро</button>
     <label class="field">Старт<select data-bind="4.graph.start">${selectOptions(graph.nodes, graph.start)}</select></label>
     <label class="field">Финиш<select data-bind="4.graph.end">${selectOptions(graph.nodes, graph.end)}</select></label>
-    ${fieldInput('Кратчайший путь через дефис', '4.graph.path', graph.path)}
-    ${fieldInput('Его длина', '4.graph.length', graph.length)}`;
+    ${fieldInput('Кратчайший путь через дефис', '4.graph.path', graph.path, false, 'Дом - Школа - Стадион')}
+    ${fieldInput('Его длина, км', '4.graph.length', graph.length, false, '14')}`;
 }
 
 function renderTeacher() {
@@ -2472,7 +2473,9 @@ function traceFlowHtml(algo, byIdMap) {
     else cls += ' is-ok';
     chunks.push(`<div class="flow-slot ${cls}"><span class="slot-n">${index + 1}</span>${shapeHtml(block.shape)}<span>${esc(block.text)}</span></div>`);
     if (id === 'if' && !locked) {
-      chunks.push(`<div class="btn-row trace-branch"><button class="btn ${branch === 'yes' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="trace-branch" data-branch="yes">Да</button><button class="btn ${branch === 'no' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="trace-branch" data-branch="no">Нет</button></div>`);
+      const yesText = byIdMap.yes ? byIdMap.yes.text : 'Да';
+      const noText = byIdMap.no ? byIdMap.no.text : 'Нет';
+      chunks.push(`<div class="btn-row trace-branch"><button class="btn ${branch === 'yes' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="trace-branch" data-branch="yes">Да: ${esc(yesText)}</button><button class="btn ${branch === 'no' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="trace-branch" data-branch="no">Нет: ${esc(noText)}</button></div>`);
     }
   });
   return `<div class="flow">${chunks.join('')}</div>`;
@@ -2517,7 +2520,7 @@ function trainer3(lesson) {
     const hint = algo.challenge.type === 'choice'
       ? (branchReady ? 'Ветка выбрана' : 'Нажми Да или Нет в ромбе')
       : (branchReady ? 'Ветка выбрана — посчитай цену' : 'Сначала выбери ветку ромба');
-    return `<article class="card no-cheat"><h3>Прогони схему</h3><p class="task-ask">Сравни число с условием в ромбе и нажми Да или Нет. Если просят цену — впиши её после ветки.</p><p>${esc(algo.challenge.text)}</p><p class="play-count ${branchReady ? 'is-ready' : ''}">${hint}</p>${traceFlowHtml(algo, byIdMap)}${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать прогон</button></article>`;
+    return `<article class="card no-cheat"><h3>Прогони схему</h3><p class="task-ask">Нажми ветку, которая верна для числа в задаче. На кнопке написано, что она делает. Если ниже просят цену — впиши её числом.</p><p>${esc(algo.challenge.text)}</p><p class="play-count ${branchReady ? 'is-ready' : ''}">${hint}</p>${traceFlowHtml(algo, byIdMap)}${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать прогон</button></article>`;
   }
   const traceCheck = algo.traceGivenText
     ? `<p class="${algo.traceOk ? 'ok-text' : 'warn-text'}">Вы ответили: ${esc(algo.traceGivenText)}. Верно: ${esc(algo.traceRightText)}.</p>`

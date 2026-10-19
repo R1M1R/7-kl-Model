@@ -592,7 +592,10 @@ table.matrix { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
 .flow-slot.is-no { border-style: solid; border-color: var(--bad); background: rgba(255, 93, 115, 0.1); }
 .flow-slot.is-now { border-style: solid; border-color: var(--amber); }
 .flow-slot.is-dim { opacity: 0.38; }
-.trace-branch { margin: 8px 0 4px; }
+.trace-branch { margin: 8px 0 4px; grid-template-columns: 1fr; }
+.trace-branch .btn { white-space: normal; text-align: left; height: auto; }
+.journal-now { margin: 0 0 10px; }
+.journal-now .list-check { margin-top: 4px; }
 .slot-n {
   width: 28px;
   height: 28px;
