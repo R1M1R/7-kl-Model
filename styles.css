@@ -174,8 +174,8 @@ img, svg { max-width: 100%; }
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 12px 20px;
-  scroll-padding-bottom: 16px;
+  padding: 12px 12px 36px;
+  scroll-padding-bottom: 24px;
 }
 
 .tabbar {
@@ -272,8 +272,8 @@ img, svg { max-width: 100%; }
 .blitz-q { font-size: 1.08rem; font-weight: 800; }
 .task-ask { margin: 12px 0; padding: 12px 14px; border-radius: 14px; background: #0d1a30; border-left: 4px solid var(--amber); font-size: 1.12rem; font-weight: 800; }
 .task-ask::before { content: "Задание"; display: block; margin-bottom: 4px; color: var(--amber); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.choice.is-ok, .choice.is-ok:disabled { opacity: 1; color: #041018; background: var(--good); border-color: transparent; }
-.choice.is-wrong, .choice.is-wrong:disabled { opacity: 1; }
+.choice.is-wrong, .choice.is-wrong:disabled,
+.chip.is-no, .chip.is-no:disabled { opacity: 1; }
 .result-hero strong { color: var(--accent, var(--text)); }
 
 .score-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
@@ -282,7 +282,8 @@ img, svg { max-width: 100%; }
 }
 .choice.is-right, .chip.is-on, .block-item.is-pick { border-color: var(--cyan); background: rgba(61, 224, 255, 0.1); }
 .choice.is-wrong, .chip.is-no { border-color: var(--bad); background: rgba(255, 93, 115, 0.1); }
-.choice.is-ok { border-color: var(--good); background: rgba(62, 224, 160, 0.12); }
+.choice.is-ok, .choice.is-ok:disabled,
+.chip.is-ok, .chip.is-ok:disabled { opacity: 1; color: #041018; background: var(--good); border-color: transparent; }
 .chip { min-height: 64px; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

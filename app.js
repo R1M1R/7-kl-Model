@@ -71,7 +71,7 @@ const MISSIONS = [
     icon: 'fa-solid fa-magnifying-glass',
     hue: '#3de0ff',
     story: 'Лаборатория получила заказ: отличить настоящий объект от модели и оставить только признаки, которые нужны для цели. Остальное — маскировка.',
-    stations: [['Брифинг', '5 мин'], ['Теория', '12 мин'], ['Практика', '15 мин'], ['Дневник', '8 мин'], ['Блиц', '5 мин']],
+    stations: [['Теория', '8 мин'], ['Задание', '10 мин'], ['Примеры', '8 шт.'], ['Дневник', '5 мин'], ['Блиц', '5 мин']],
     notes: [
       'Какой объект вы сегодня отличали от модели и зачем для него делают модель?',
       'Назовите два признака, которые были существенными, и объясните почему.',
@@ -83,7 +83,7 @@ const MISSIONS = [
     icon: 'fa-solid fa-chart-line',
     hue: '#9b8cff',
     story: 'Дрон и бак с водой подчиняются формулам. Ваша миссия — собрать математическую модель, увидеть её на графике и получить точное число.',
-    stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['График', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
+    stations: [['Теория', '8 мин'], ['Задание', '10 мин'], ['Примеры', '8 шт.'], ['Дневник', '5 мин'], ['Блиц', '5 мин']],
     notes: [
       'Какая формула была моделью вашей задачи и что в ней было результатом?',
       'Что изменилось бы на графике, если увеличить скорость или приток?',
@@ -95,7 +95,7 @@ const MISSIONS = [
     icon: 'fa-solid fa-shapes',
     hue: '#ffc14d',
     story: 'Автомат в школе ждёт точных команд. Соберите блок-схему, прогоните число и объясните, почему исполнитель не умеет догадываться.',
-    stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['Сборка схемы', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
+    stations: [['Теория', '8 мин'], ['Задание', '10 мин'], ['Примеры', '8 шт.'], ['Дневник', '5 мин'], ['Блиц', '5 мин']],
     notes: [
       'Какой блок обозначает условие и почему он не прямоугольник?',
       'Что выдал ваш алгоритм на тестовом числе и какая ветка сработала?',
@@ -107,7 +107,7 @@ const MISSIONS = [
     icon: 'fa-solid fa-map-location-dot',
     hue: '#3ee0a0',
     story: 'Пять пунктов связаны дорогами с разной длиной. Перенесите веса на схему и найдите кратчайший путь. Побеждает не красивая линия, а меньшая сумма.',
-    stations: [['Брифинг', '5 мин'], ['Теория', '10 мин'], ['Граф', '18 мин'], ['Дневник', '7 мин'], ['Блиц', '5 мин']],
+    stations: [['Теория', '8 мин'], ['Задание', '10 мин'], ['Примеры', '8 шт.'], ['Дневник', '5 мин'], ['Блиц', '5 мин']],
     notes: [
       'Чем таблица «объект — объект» отличается от таблицы свойств?',
       'Какой маршрут вы нашли и почему он короче соседнего?',
@@ -1525,6 +1525,7 @@ function rulesHtml(learn) {
     <ul class="list-check">
       <li>Теория — до 15 баллов: 5 вопросов по 3. Балл только если ответ верный с первой попытки. Дальше без балла, но с пониманием.</li>
       <li>Тренажёр — 45 баллов. Каждая ошибка снимает 10. Сдать задание можно один раз.</li>
+      <li>Дальше 8 коротких примеров без оценки. Дневник откроется, когда они верны и урок идёт уже полчаса. Пока ждёте, можно крутить модели и решать ещё.</li>
       <li>Дневник миссии обязателен, но баллов не даёт. Он нужен, чтобы блиц открылся и учитель увидел ваши мысли.</li>
       <li>Блиц — 4 вопроса по 10 баллов, 45 секунд и одна попытка. На расчётных вопросах ответ быстрее 2 секунд не засчитывается.</li>
       <li>Уход с экрана во время тренажёра или блица фиксируется. Первый — предупреждение без штрафа. Дальше каждый следующий уход снимает 5 баллов: 2 ухода — минус 5, 3 — минус 10, и так до минус 20.</li>
@@ -2245,12 +2246,14 @@ function theoryHtml(lesson) {
   const why = card.solved
     ? `<div class="why ${card.points ? 'is-ok' : 'is-no'}"><b>${card.points ? 'Верно сразу: 3 балла' : 'Не с первой попытки: 0 баллов. Зелёный ответ — верный.'}</b><p>${esc(card.explain)}</p></div>`
     : '';
+  const retry = !card.solved && card.wrong.length ? '<p class="warn-text">Этот не подошёл. Нажми другой вариант.</p>' : '';
   const mission = MISSIONS[lesson.n];
   const parts = theoryParts(card.body);
   const ask = THEORY_ASK[card.title] || 'Выберите верный ответ.';
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
-  const answers = card.solved ? `${why}${next}<div class="theory-review">${options}</div>` : `${gate}${options}`;
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div><p class="task-ask">${esc(ask)}</p>${answers}${recap}</article>`;
+  const reading = `<div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div>`;
+  const answers = card.solved ? `${why}${next}<div class="theory-review">${options}</div>${reading}` : `${reading}${gate}${retry}${options}`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><p class="task-ask">${esc(ask)}</p>${answers}${recap}</article>`;
 }
 
 function atDemo(lesson) {
@@ -2407,12 +2410,12 @@ function trainer2(lesson) {
   const canvas = `<canvas class="plot" data-plot-live="1" data-ymax="${plotSpec(scenario).yMax}"></canvas>`;
   if (lesson.trainer.stage === 'calc') {
     const correct = scenario.formulas.find((formula) => formula.ok).text;
-    return `<article class="card no-cheat"><h3>Собери модель</h3><p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">${esc(correct)}</p>${modelPlay(scenario)}<p class="fine">Крути ползунки, пока все три числа условия не загорятся. Потом впиши число с графика. Верх шкалы — не ответ.</p>${canvas}${sliders}<label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать число с графика</button></article>`;
+    return `<article class="card no-cheat"><h3>Собери модель</h3><p class="task-ask">Крути ползунки, пока три числа условия не загорятся. Потом впиши число с графика. Верх шкалы — не ответ.</p><p class="${scenario.formulaWasOk ? 'ok-text' : 'warn-text'}">${esc(correct)}</p>${modelPlay(scenario)}${canvas}${sliders}<label class="field">${esc(scenario.mainAsk)}<input id="math-answer" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="math-submit">Сдать число с графика</button></article>`;
   }
   if (lesson.trainer.stage === 'extra') {
     const mainSame = scenario.mainGiven === scenario.mainAnswer;
     const mainCheck = scenario.mainGiven == null ? '' : `<p class="${mainSame ? 'ok-text' : 'warn-text'}">Твой расчёт: ${scenario.mainGiven}. Верно: ${scenario.mainAnswer}.</p>`;
-    return `<article class="card no-cheat"><h3>Ещё одна величина</h3>${mainCheck}${modelPlay(scenario)}<p class="fine">${esc(scenario.extraAsk)}</p>${canvas}${sliders}<label class="field">Ответ<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать</button></article>`;
+    return `<article class="card no-cheat"><h3>Ещё одна величина</h3><p class="task-ask">${esc(scenario.extraAsk)}</p>${mainCheck}${modelPlay(scenario)}${canvas}${sliders}<label class="field">Ответ<input id="math-extra" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="extra-submit">Сдать</button></article>`;
   }
   const extraSame = scenario.extraGiven === scenario.extraAnswer;
   const extraCheck = scenario.extraGiven == null ? '' : `<p class="${extraSame ? 'ok-text' : 'warn-text'}">Ваша величина: ${scenario.extraGiven}. Верно: ${scenario.extraAnswer}.</p>`;
@@ -2498,7 +2501,7 @@ function trainer3(lesson) {
     const hint = algo.challenge.type === 'choice'
       ? (branchReady ? 'Ветка выбрана' : 'Нажми Да или Нет в ромбе')
       : (branchReady ? 'Ветка выбрана — посчитай цену' : 'Сначала выбери ветку ромба');
-    return `<article class="card no-cheat"><h3>Прогони схему</h3><p>${esc(algo.challenge.text)}</p><p class="play-count ${branchReady ? 'is-ready' : ''}">${hint}</p>${traceFlowHtml(algo, byIdMap)}${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать прогон</button></article>`;
+    return `<article class="card no-cheat"><h3>Прогони схему</h3><p class="task-ask">Сравни число с условием в ромбе и нажми Да или Нет. Если просят цену — впиши её после ветки.</p><p>${esc(algo.challenge.text)}</p><p class="play-count ${branchReady ? 'is-ready' : ''}">${hint}</p>${traceFlowHtml(algo, byIdMap)}${chooser}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="trace-submit">Сдать прогон</button></article>`;
   }
   const traceCheck = algo.traceGivenText
     ? `<p class="${algo.traceOk ? 'ok-text' : 'warn-text'}">Вы ответили: ${esc(algo.traceGivenText)}. Верно: ${esc(algo.traceRightText)}.</p>`
@@ -2595,7 +2598,7 @@ function trainer4(lesson) {
   if (lesson.trainer.stage === 'edges') {
     const rows = graph.edges.map((edge) => `<label class="edge-row"><span>${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}</span><input class="bare-input" inputmode="numeric" data-edge="${edge.id}" value="${esc(graph.draft[edge.id] || '')}" placeholder="км"></label>`).join('');
     const filledRoads = graph.edges.filter((edge) => /^\d+$/.test(String(graph.draft[edge.id] || '').trim())).length;
-    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${distanceTable(graph)}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
+    return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="task-ask">Найди дорогу в таблице: строка и столбец — пункты. Впиши то же число в поле этой дороги.</p><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${distanceTable(graph)}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit">Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
     const lines = graph.edges.map((edge) => {
@@ -2778,6 +2781,39 @@ function makeLabTask(lesson) {
   return labTask1(rng);
 }
 
+function bonusTask(lesson) {
+  return makeLabTask({
+    seed: lesson.seed,
+    n: lesson.n,
+    lab: { index: 40 + (lesson.lab.bonus || 0) }
+  });
+}
+
+function shownLabTask(lesson) {
+  if ((lesson.lab.correct || 0) >= LAB_NEED) return bonusTask(lesson);
+  return lesson.lab.task;
+}
+
+function settleLab(lesson, ok, missValue) {
+  if (!ok) {
+    lesson.lab.miss = missValue;
+    lesson.lab.streak = 0;
+    save();
+    render();
+    return;
+  }
+  lesson.lab.miss = null;
+  lesson.lab.streak = (lesson.lab.streak || 0) + 1;
+  if (lesson.lab.correct >= LAB_NEED) lesson.lab.bonus = (lesson.lab.bonus || 0) + 1;
+  else {
+    lesson.lab.correct += 1;
+    lesson.lab.index += 1;
+    lesson.lab.task = makeLabTask(lesson);
+  }
+  save();
+  render();
+}
+
 function ensureLab(lesson) {
   if (!lesson.lab) lesson.lab = { index: 0, correct: 0, task: null, miss: null };
   if (!lesson.lab.task) lesson.lab.task = makeLabTask(lesson);
@@ -2789,7 +2825,7 @@ function labReady(lesson) {
 
 function labHtml(lesson) {
   ensureLab(lesson);
-  const task = lesson.lab.task;
+  const task = shownLabTask(lesson);
   const ms = lesson.timeMs || 0;
   const leftMin = Math.max(0, Math.ceil((LAB_MS - ms) / 60000));
   const width = Math.min(100, Math.round(ms / LAB_MS * 100));
@@ -2798,12 +2834,14 @@ function labHtml(lesson) {
   const streak = lesson.lab.streak || 0;
   const cheer = streak >= 3 ? '<p class="toy-mood is-warm">Серия ' + streak + '. Так держать.</p>' : '';
   const hint = lesson.lab.miss != null && task.hint ? `<p class="warn-text">${esc(task.hint)}</p>` : '';
-  const gate = `<article class="card mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. ${lesson.lab.correct >= LAB_NEED ? 'Примеры готовы. Крутите модель, пока идёт урок.' : 'Урок занимает полчаса.'}</p><button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
-  if (lesson.lab.correct >= LAB_NEED) return gate + playgroundHtml(lesson);
+  const gate = `<article class="card mission quest-card"><h3>Закрепление</h3><p class="play-count ${lesson.lab.correct >= LAB_NEED ? 'is-ready' : ''}">Верно ${lesson.lab.correct} из ${LAB_NEED}${streak >= 2 ? ' · серия ' + streak : ''}</p><div class="xp-track"><span data-lab-bar style="width:${width}%"></span></div><p class="fine" data-lab-left>${timeText}. ${lesson.lab.correct >= LAB_NEED ? 'Примеры готовы. Можно решить ещё или покрутить модели.' : 'Урок занимает полчаса.'}</p><button class="btn btn-primary ${ready ? '' : 'is-hidden'}" type="button" data-act="lab-next" data-lab-next>К дневнику</button></article>`;
+  const ask = task.kind === 'number' ? 'Посчитай и впиши целое число.' : 'Нажми один ответ.';
   const body = task.kind === 'number'
     ? '<label class="field">Целое число<input id="lab-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="lab-num">Проверить</button>'
     : task.options.map((option, index) => `<button class="btn choice ${lesson.lab.miss === index ? 'is-wrong' : ''}" type="button" data-act="lab-pick" data-i="${index}">${esc(option)}</button>`).join('');
-  return `<article class="card no-cheat mission quest-card"><h3>Пример</h3>${cheer}<p class="blitz-q">${esc(task.text)}</p>${hint}${body}</article>` + gate;
+  const card = `<article class="card no-cheat mission quest-card"><h3>${lesson.lab.correct >= LAB_NEED ? 'Ещё пример' : 'Пример'}</h3>${lesson.lab.correct >= LAB_NEED ? `<p class="fine">На оценку не влияет. Ещё верно: ${lesson.lab.bonus || 0}.</p>` : cheer}<p class="task-ask">${ask}</p><p class="blitz-q">${esc(task.text)}</p>${hint}${body}</article>`;
+  if (lesson.lab.correct >= LAB_NEED) return gate + card + playgroundHtml(lesson);
+  return card + gate;
 }
 
 function labTick() {
@@ -3806,41 +3844,18 @@ function handleAct(act, btn) {
     render({ toTop: true });
     return;
   }
-  if (act === 'lab-pick' && lesson && lesson.phase === 'lab' && lesson.lab && lesson.lab.task && lesson.lab.task.kind === 'choice') {
-    const ok = Number(btn.dataset.i) === lesson.lab.task.correctIndex;
-    if (!ok) {
-      lesson.lab.miss = Number(btn.dataset.i);
-      lesson.lab.streak = 0;
-      save();
-      render();
-      return;
-    }
-    lesson.lab.miss = null;
-    lesson.lab.streak = (lesson.lab.streak || 0) + 1;
-    lesson.lab.correct += 1;
-    lesson.lab.index += 1;
-    lesson.lab.task = makeLabTask(lesson);
-    save();
-    render();
+  if (act === 'lab-pick' && lesson && lesson.phase === 'lab' && lesson.lab) {
+    const task = shownLabTask(lesson);
+    if (!task || task.kind !== 'choice') return;
+    settleLab(lesson, Number(btn.dataset.i) === task.correctIndex, Number(btn.dataset.i));
     return;
   }
-  if (act === 'lab-num' && lesson && lesson.phase === 'lab' && lesson.lab && lesson.lab.task && lesson.lab.task.kind === 'number') {
+  if (act === 'lab-num' && lesson && lesson.phase === 'lab' && lesson.lab) {
+    const task = shownLabTask(lesson);
+    if (!task || task.kind !== 'number') return;
     const parsed = readInt('lab-num');
     if (!parsed.ok) { toast('Введите целое число.'); return; }
-    if (parsed.value !== lesson.lab.task.answer) {
-      lesson.lab.miss = -1;
-      lesson.lab.streak = 0;
-      save();
-      render();
-      return;
-    }
-    lesson.lab.miss = null;
-    lesson.lab.streak = (lesson.lab.streak || 0) + 1;
-    lesson.lab.correct += 1;
-    lesson.lab.index += 1;
-    lesson.lab.task = makeLabTask(lesson);
-    save();
-    render();
+    settleLab(lesson, parsed.value === task.answer, -1);
     return;
   }
   if (act === 'lab-next' && lesson && lesson.phase === 'lab') {
