@@ -1248,7 +1248,7 @@ function validateHomework(n, hw) {
       if (!isMeaningful(card.name, 3)) return { ok: false, message: `Карточка ${i + 1}: напишите название модели словами.` };
       if (!isMeaningful(card.original, 3)) return { ok: false, message: `Карточка ${i + 1}: укажите объект-оригинал.` };
       if (card.type !== 'mat' && card.type !== 'inf') return { ok: false, message: `Карточка ${i + 1}: выберите тип модели.` };
-      if (!isMeaningful(card.goal, 15)) return { ok: false, message: `Карточка ${i + 1}: цель нужна фразой не короче 15 символов.` };
+      if (!isMeaningful(card.goal, 15)) return { ok: false, message: `Карточка ${i + 1}: цель — два слова, зачем модель. Например: показать материки.` };
       names.push(card.name.trim().toLowerCase());
     }
     if (names[0] === names[1]) return { ok: false, message: 'Две карточки должны быть про разные модели.' };
@@ -1257,10 +1257,10 @@ function validateHomework(n, hw) {
   if (n === 2) {
     for (let i = 0; i < 2; i++) {
       const task = hw.tasks[i];
-      if (!isMeaningful(task.title, 20)) return { ok: false, message: `Задача ${i + 1}: запишите номер и условие своими словами.` };
-      if (!isMeaningful(task.data, 8)) return { ok: false, message: `Задача ${i + 1}: перечислите исходные данные.` };
-      if (!hasFormula(task.formula)) return { ok: false, message: `Задача ${i + 1}: формула должна содержать знак = и букву.` };
-      if (!hasCalculation(task.solution)) return { ok: false, message: `Задача ${i + 1}: покажите расчёт со знаком действия и числовым ответом.` };
+      if (!isMeaningful(task.title, 20)) return { ok: false, message: `Задача ${i + 1}: условие хотя бы двумя словами. Например: велосипед едет два часа.` };
+      if (!isMeaningful(task.data, 8)) return { ok: false, message: `Задача ${i + 1}: числа из условия. Например: v = 60 км/ч, t = 2 ч.` };
+      if (!hasFormula(task.formula)) return { ok: false, message: `Задача ${i + 1}: формула со знаком =. Например: S = v · t.` };
+      if (!hasCalculation(task.solution)) return { ok: false, message: `Задача ${i + 1}: расчёт и ответ. Например: S = 60 · 2 = 120 км.` };
     }
     return { ok: true, message: '' };
   }
@@ -1270,7 +1270,7 @@ function validateHomework(n, hw) {
     if (steps.length < 5) return { ok: false, message: 'Нужно не меньше 5 осмысленных шагов.' };
     if (steps.some((step) => !isMeaningful(step, 8))) return { ok: false, message: 'Каждый шаг — короткая фраза, не набор цифр.' };
     if (new Set(steps.map((step) => step.toLowerCase())).size < 4) return { ok: false, message: 'Шаги не должны повторять друг друга.' };
-    if (!steps.some(hasBranch)) return { ok: false, message: 'Добавьте шаг вида «Если …, то …, иначе …».' };
+    if (!steps.some(hasBranch)) return { ok: false, message: 'Один шаг напишите так: Если денег хватает, то купить, иначе отказаться.' };
     return { ok: true, message: '' };
   }
   if (hw.mode === 'graph') return validateGraphHw(hw.graph);
@@ -1442,10 +1442,10 @@ function toast(message) {
   toastTimer = setTimeout(() => node.classList.add('is-hidden'), 3200);
 }
 
-function showModal(title, text, mode) {
+function showModal(title, text, mode, okLabel) {
   $('modal-title').textContent = title;
   $('modal-text').textContent = text;
-  $('modal-ok').textContent = mode === 'confirm' ? 'Сдать' : 'Понятно';
+  $('modal-ok').textContent = okLabel || (mode === 'confirm' ? 'Сдать' : 'Понятно');
   $('modal-cancel').classList.toggle('is-hidden', mode !== 'confirm');
   $('modal').classList.remove('is-hidden');
   document.body.classList.add('modal-open');
@@ -1457,9 +1457,9 @@ function closeModal() {
   pendingYes = null;
 }
 
-function confirmModal(title, text, onYes) {
+function confirmModal(title, text, onYes, okLabel) {
   pendingYes = onYes;
-  showModal(title, text, 'confirm');
+  showModal(title, text, 'confirm', okLabel);
 }
 
 function paintClocks() {
@@ -1492,10 +1492,9 @@ function scoreStrip(lesson) {
 }
 
 function stepsHtml(phase, hue) {
-  const order = ['goal', 'theory', 'trainer', 'notes', 'blitz', 'done'];
-  const labels = ['Старт', 'Теория', 'Практика', 'Дневник', 'Блиц', 'Итог'];
-  const current = phase === 'done' ? 5 : phase === 'lab' ? 2 : Math.max(0, order.indexOf(phase));
-  if (phase === 'lab') labels[2] = 'Закрепление';
+  const order = ['goal', 'theory', 'trainer', 'lab', 'notes', 'blitz'];
+  const labels = ['Старт', 'Теория', 'Задание', 'Примеры', 'Дневник', 'Блиц'];
+  const current = phase === 'done' ? order.length : Math.max(0, order.indexOf(phase));
   const color = hue ? ` style="--accent:${hue}"` : '';
   return `<div class="steps"${color}>${labels.map((label, index) => `<span class="step ${index < current ? 'is-done' : ''} ${index === current ? 'is-now' : ''}"><b>${index + 1}</b><small>${esc(label)}</small></span>`).join('')}</div>`;
 }
@@ -1596,7 +1595,7 @@ function renderLessons() {
         <button class="btn ${group === '1' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="set-group" data-group="1">Группа 1</button>
         <button class="btn ${group === '2' ? 'btn-primary' : 'btn-ghost'}" type="button" data-act="set-group" data-group="2">Группа 2</button>
       </div>
-      <p class="fine">Светлая кнопка — ваша группа. Если учитель назвал другую, нажмите её.</p>
+      <p class="fine">Светлая кнопка — ваша группа. Меняйте её, только если учитель назвал другую.</p>
       <div class="xp-track" aria-hidden="true"><span style="width:${width}%"></span></div>
       <p class="fine">Дальше: ${esc(nextName)}</p>
       <p class="fine" data-cloud-note>${esc(state.cloudNote || 'Баллы уходят учителю сами. Код класса вводить не нужно.')}</p>
@@ -1640,13 +1639,20 @@ function progressPayload() {
   const lessons = [1, 2, 3, 4].map((n) => {
     const lesson = state.lessons[n];
     if (!lesson || lesson.phase === 'goal' || !lesson.startedAt) return { n, done: false };
-    if (lesson.phase !== 'done') return {
-      n,
-      done: false,
-      working: true,
-      minutes: Math.max(0, Math.round((lesson.timeMs || 0) / 60000)),
-      labCorrect: lesson.lab ? (lesson.lab.correct || 0) : 0
-    };
+    if (lesson.phase !== 'done') {
+      const stageName = { theory: 'теория', trainer: 'задание', lab: 'примеры', notes: 'дневник', blitz: 'блиц' };
+      const row = {
+        n,
+        done: false,
+        working: true,
+        minutes: Math.max(0, Math.round((lesson.timeMs || 0) / 60000)),
+        stage: stageName[lesson.phase] || 'идёт'
+      };
+      if (lesson.phase === 'lab' || (lesson.lab && (lesson.lab.correct || 0) > 0)) {
+        row.labCorrect = lesson.lab ? (lesson.lab.correct || 0) : 0;
+      }
+      return row;
+    }
     return {
       n,
       done: true,
@@ -1923,8 +1929,9 @@ function journalCards(rows) {
       const item = lessonByNumber(row, n);
       if (!item || item.done || !item.working) return '';
       const bits = [];
+      if (item.stage && item.stage !== 'примеры') bits.push(item.stage);
       if (item.minutes != null) bits.push(item.minutes + ' мин');
-      if (item.labCorrect != null) bits.push('примеры ' + item.labCorrect + '/8');
+      if (item.stage === 'примеры' || (item.labCorrect != null && item.labCorrect > 0)) bits.push('примеры ' + (item.labCorrect || 0) + '/8');
       return 'урок ' + n + ': ' + (bits.join(', ') || 'идёт');
     }).filter(Boolean).join(' · ');
     return `${band}<article class="journal-person ${hasTwo ? 'is-weak' : ''}"><div><b>${esc(row.lastName)} ${esc(row.firstName)}</b><span>группа ${esc(group)}</span></div>${also}<div class="journal-marks">${marks}</div><p>${points} баллов · ДЗ ${hw}/4${live ? ' · ' + esc(live) : ''}</p></article>`;
@@ -1943,7 +1950,16 @@ function journalCards(rows) {
     return `<article class="subcard"><h3>${esc(row.lastName)} ${esc(row.firstName)}, группа ${esc(row.groupId || '–')}</h3><div class="readout">${esc(lessons)}</div>${homework}</article>`;
   }).join('');
   const gaps = gapBlocks(sorted);
-  return `<p class="fine">Учеников ${sorted.length}. С оценкой хотя бы за один урок: ${sorted.filter((row) => lessonList(row).some((lesson) => lesson.done)).length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
+  const now = [];
+  sorted.forEach((row) => {
+    [1, 2, 3, 4].forEach((n) => {
+      const item = lessonByNumber(row, n);
+      if (!item || item.done || !item.working) return;
+      now.push(row.lastName + ' ' + row.firstName + ' · урок ' + n + ', ' + (item.stage || 'идёт'));
+    });
+  });
+  const nowBlock = now.length ? `<p class="ok-text">Сейчас в уроке (${now.length}): ${esc(now.join('; '))}.</p>` : '';
+  return `${nowBlock}<p class="fine">Учеников ${sorted.length}. С оценкой хотя бы за один урок: ${sorted.filter((row) => lessonList(row).some((lesson) => lesson.done)).length}. Уроков сдано ${lessonCount}. Домашних работ ${hwCount}.</p>
     <div class="journal-list">${body}</div>
     ${weakLine(sorted) ? `<p class="warn-text">${esc(weakLine(sorted))}</p>` : ''}
     ${gaps ? `<details class="rules"><summary>Кто ещё не сдал урок</summary>${gaps}</details>` : ''}
@@ -2311,7 +2327,7 @@ function classifyHtml(trainer) {
     : '<p class="ok-text">Все карточки в своих стопках.</p>');
   const action = locked
     ? '<button class="btn btn-primary" type="button" data-act="go-notes">К закреплению</button>'
-    : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit">Сдать стопки</button>';
+    : `<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="cls-submit" ${sorted === items.length ? '' : 'disabled'}>Сдать стопки</button>`;
   const count = locked ? `Ошибок: ${wrong.length}` : `Разобрано ${sorted} из ${items.length}`;
   const ready = locked ? wrong.length === 0 : sorted === items.length;
   const back = !locked && sorted ? '<p class="fine">Нажми карточку в стопке, если хочешь вернуть её.</p>' : '';
@@ -2335,7 +2351,7 @@ function trainer1(lesson) {
     const action = trainer.task.submitted
       ? `${featureWhy}<p>Ошибок в фильтре: ${featureErrors(trainer.task.features, trainer.task.picked)}. Баллы уже учтены.</p><button class="btn btn-primary" type="button" data-act="feat-next">К классификатору</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="feat-submit">Сдать выбор признаков</button>';
-    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><p class="task-ask">Отметь только то, без чего цель не выполнить. Лишнее не нажимай.</p><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}</p><div class="grid-2">${chips}</div>${action}</article>`;
+    return `<article class="card no-cheat"><h3>Фильтр признаков</h3><p class="task-ask">Отметь только то, без чего цель не выполнить. Лишнее не нажимай. Можно несколько.</p><div class="task-brief"><b>${esc(trainer.task.object)}</b><span>${esc(trainer.task.goal)}</span></div><p class="play-count">Отмечено ${trainer.task.picked.length}. Можно несколько.</p><div class="grid-2">${chips}</div>${action}</article>`;
   }
   return classifyHtml(trainer);
 }
@@ -2490,7 +2506,7 @@ function trainer3(lesson) {
     const action = algo.orderLocked
       ? `${fixes}<p class="ok-text">Верный порядок: ${algo.correct.map((id) => esc(byIdMap[id].text)).join(' → ')}</p><button class="btn btn-primary" type="button" data-act="trace-start">К трассировке</button>`
       : '<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="order-submit">Сдать порядок блоков</button>';
-    const how = algo.orderLocked ? '' : '<p class="task-ask">Нажми блок — он встанет в первый пустой шаг. Нажми шаг, чтобы убрать его.</p>';
+    const how = algo.orderLocked ? '' : '<p class="task-ask">Нажми блок — он встанет в первый пустой шаг. Нажми шаг, чтобы убрать его. В схеме все семь блоков, включая обе ветки.</p>';
     return `<article class="card no-cheat"><h3>${esc(algo.title)}</h3><p>${esc(algo.story)}</p>${how}<p class="play-count ${filledSlots === algo.slots.length ? 'is-ready' : ''}">В схеме ${filledSlots} из ${algo.slots.length}</p>${legend}${bank}<div class="flow">${slots}</div>${action}</article>`;
   }
   if (!algo.traceLocked) {
@@ -2639,10 +2655,11 @@ function blitzHtml(lesson) {
   const letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е'];
   const mission = MISSIONS[lesson.n];
   const dots = [0, 1, 2, 3].map((index) => `<i class="${index < blitz.index ? 'is-done' : ''} ${index === blitz.index ? 'is-now' : ''}"></i>`).join('');
+  const ask = question.type === 'choice' ? 'Нажми один ответ.' : 'Посчитай и впиши целое число. Единицы не пиши.';
   const answers = question.type === 'choice'
     ? question.options.map((option, index) => `<button class="btn choice" type="button" data-act="blitz-pick" data-i="${index}"><span class="choice-letter">${letters[index] || index + 1}</span><span>${esc(option)}</span></button>`).join('')
     : `<label class="field">Целое число<input id="blitz-num" inputmode="numeric" autocomplete="off"></label><button class="btn btn-primary" type="button" data-act="blitz-num">Сдать число</button>`;
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Вопрос ${blitz.index + 1} из 4">${dots}</div><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Вопрос ${blitz.index + 1} из 4">${dots}</div><div class="timer"><span>Блиц ${blitz.index + 1} / 4</span><span data-timer-label>${Math.ceil(left / 1000)} с</span></div><div class="timer-track"><span data-timer-bar style="width:${(left / BLITZ_MS) * 100}%"></span></div><p class="task-ask">${ask}</p><p class="blitz-q">${esc(question.text)}</p>${question.complex ? '<p class="fine">Расчётный вопрос: ответ быстрее 2 секунд не засчитывается.</p>' : ''}${extra}${graph}${answers}</article>`;
 }
 
 function toyHtml(lesson, practice) {
@@ -2691,7 +2708,10 @@ function labTask1(rng) {
       ['Чертёж дома', 'Сам дом'],
       ['Глобус', 'Планета Земля'],
       ['Расписание уроков', 'Живой урок'],
-      ['Игрушечный мост', 'Настоящий мост']
+      ['Игрушечный мост', 'Настоящий мост'],
+      ['Карта метро', 'Город'],
+      ['Рецепт борща', 'Кастрюля с борщом'],
+      ['Макет ракеты', 'Настоящая ракета']
     ];
     const pair = pairs[Math.floor(rng() * pairs.length)];
     const options = rng() < 0.5 ? [pair[0], pair[1]] : [pair[1], pair[0]];
@@ -2701,7 +2721,8 @@ function labTask1(rng) {
     const cards = [
       { goal: 'посчитать бензин', good: 'Расход на 100 км', bad: ['Цвет салона', 'Название радио', 'Рисунок на коврике'] },
       { goal: 'эвакуация школы', good: 'Ширина выходов', bad: ['Цвет штор', 'Марка доски', 'Рисунок на портфеле'] },
-      { goal: 'заряд телефона', good: 'Ёмкость аккумулятора', bad: ['Цвет чехла', 'Мелодия звонка', 'Обои'] }
+      { goal: 'заряд телефона', good: 'Ёмкость аккумулятора', bad: ['Цвет чехла', 'Мелодия звонка', 'Обои'] },
+      { goal: 'выбрать рюкзак в поход', good: 'Объём и вес', bad: ['Цвет молнии', 'Рисунок на кармане', 'Имя на бирке'] }
     ];
     const card = cards[Math.floor(rng() * cards.length)];
     const options = shuffle(rng, [card.good].concat(card.bad));
@@ -2735,7 +2756,8 @@ function labTask3(rng) {
     const shapes = [
       ['Условие «да или нет» записывают в…', 'Ромб', ['Овал', 'Прямоугольник', 'Параллелограмм']],
       ['Начало алгоритма записывают в…', 'Овал', ['Ромб', 'Прямоугольник', 'Параллелограмм']],
-      ['Ввод числа записывают в…', 'Параллелограмм', ['Ромб', 'Овал', 'Прямоугольник']]
+      ['Ввод числа записывают в…', 'Параллелограмм', ['Ромб', 'Овал', 'Прямоугольник']],
+      ['Действие «вычти 1» записывают в…', 'Прямоугольник', ['Ромб', 'Овал', 'Параллелограмм']]
     ];
     const card = shapes[Math.floor(rng() * shapes.length)];
     const options = shuffle(rng, [card[1]].concat(card[2]));
@@ -2749,8 +2771,14 @@ function labTask3(rng) {
     const correct = cool ? 'Включить охлаждение' : 'Выключить охлаждение';
     return { kind: 'choice', text: 'Если T > ' + limit + ', включают охлаждение, иначе выключают. Подали T = ' + sample + '. Что будет?', options, correctIndex: options.indexOf(correct), hint: 'Сравните поданное число с порогом. Больше порога — ветка «да».' };
   }
-  const options = shuffle(rng, ['Пока есть проходы, пропускай следующего', 'Вывести слово «готово»', 'Начало алгоритма']);
-  return { kind: 'choice', text: 'Где здесь цикл?', options, correctIndex: options.indexOf('Пока есть проходы, пропускай следующего'), hint: 'Цикл узнаётся по слову «пока»: действие повторяется.' };
+  const cycles = [
+    ['Пока есть проходы, пропускай следующего', 'Вывести слово «готово»', 'Начало алгоритма'],
+    ['Пока чайник не закипел, жди', 'Выключить чайник один раз', 'Овал «конец»'],
+    ['Пока в очереди есть люди, обслуживай следующего', 'Напечатать чек', 'Одно действие в прямоугольнике']
+  ];
+  const cycle = cycles[Math.floor(rng() * cycles.length)];
+  const options = shuffle(rng, cycle.slice());
+  return { kind: 'choice', text: 'Где здесь цикл?', options, correctIndex: options.indexOf(cycle[0]), hint: 'Цикл узнаётся по слову «пока»: действие повторяется.' };
 }
 
 function labTask4(rng) {
@@ -3498,11 +3526,13 @@ function handleAct(act, btn) {
   if (act === 'set-group') {
     const group = btn.dataset.group === '2' ? '2' : '1';
     if (state.groupId === group) return;
-    state.groupId = group;
-    save();
-    toast(group === '2' ? 'Теперь вы в группе 2' : 'Теперь вы в группе 1');
-    publishProgress({ loud: true });
-    render();
+    confirmModal('Сменить группу?', 'Оценки переедут в группу ' + group + '. Делайте это, только если учитель так сказал.', () => {
+      state.groupId = group;
+      save();
+      toast(group === '2' ? 'Теперь вы в группе 2' : 'Теперь вы в группе 1');
+      publishProgress({ loud: true });
+      render();
+    }, 'Сменить');
     return;
   }
   if (act === 'save-room') {
@@ -3899,7 +3929,7 @@ function handleAct(act, btn) {
     const node = $('note-now');
     const text = node ? node.value.trim() : '';
     if (!isMeaningful(text, 10)) {
-      toast('Нужны хотя бы два слова своими словами.');
+      toast('Нужны два слова своими словами. Например: ромб задаёт вопрос.');
       return;
     }
     lesson.notes[step] = text;
