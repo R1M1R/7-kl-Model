@@ -2080,27 +2080,26 @@ function readonlyHw(n, hw) {
 
 function editorHw(n, hw) {
   if (n === 1) {
-    return `<div class="hw-form">${hw.cards.map((card, index) => `<h3>Карточка ${index + 1}</h3>
-      ${fieldInput('Название модели', `1.cards.${index}.name`, card.name)}
-      ${fieldInput('Объект-оригинал', `1.cards.${index}.original`, card.original)}
+    return `<div class="hw-form"><p class="task-ask">Две разные модели. Пример: название «глобус», оригинал «Земля», тип материальная, цель «показать материки».</p>${hw.cards.map((card, index) => `<h3>Карточка ${index + 1}</h3>
+      ${fieldInput('Название модели', `1.cards.${index}.name`, card.name, false, 'глобус')}
+      ${fieldInput('Объект-оригинал', `1.cards.${index}.original`, card.original, false, 'Земля')}
       <label class="field">Тип модели<select data-bind="1.cards.${index}.type">
         <option value="">Выберите</option>
         <option value="mat" ${card.type === 'mat' ? 'selected' : ''}>Материальная (натурная)</option>
         <option value="inf" ${card.type === 'inf' ? 'selected' : ''}>Информационная</option>
       </select></label>
-      ${fieldInput('Цель создания', `1.cards.${index}.goal`, card.goal, true)}`).join('')}<button class="btn btn-primary" type="button" data-act="hw-save" data-n="1">Сдать ДЗ 1</button></div>`;
+      ${fieldInput('Цель создания', `1.cards.${index}.goal`, card.goal, true, 'показать материки')}`).join('')}<button class="btn btn-primary" type="button" data-act="hw-save" data-n="1">Сдать ДЗ 1</button></div>`;
   }
   if (n === 2) {
-    return `<div class="hw-form">${hw.tasks.map((task, index) => `<h3>Задача ${index + 1}</h3>
-      ${fieldInput('Номер и условие', `2.tasks.${index}.title`, task.title, true)}
-      ${fieldInput('Исходные данные', `2.tasks.${index}.data`, task.data, true)}
-      ${fieldInput('Формула', `2.tasks.${index}.formula`, task.formula)}
-      ${fieldInput('Расчёт и ответ', `2.tasks.${index}.solution`, task.solution, true)}`).join('')}${photoField(2, 'Фото решения в тетради, необязательно')}<button class="btn btn-primary" type="button" data-act="hw-save" data-n="2">Сдать ДЗ 2</button></div>`;
+    return `<div class="hw-form"><p class="task-ask">Две задачи с формулой и расчётом. Пример: формула S = v · t, расчёт S = 60 · 2 = 120 км.</p>${hw.tasks.map((task, index) => `<h3>Задача ${index + 1}</h3>
+      ${fieldInput('Номер и условие', `2.tasks.${index}.title`, task.title, true, 'Велосипед едет 2 часа')}
+      ${fieldInput('Исходные данные', `2.tasks.${index}.data`, task.data, true, 'v = 60 км/ч, t = 2 ч')}
+      ${fieldInput('Формула', `2.tasks.${index}.formula`, task.formula, false, 'S = v · t')}
+      ${fieldInput('Расчёт и ответ', `2.tasks.${index}.solution`, task.solution, true, 'S = 60 · 2 = 120 км')}`).join('')}${photoField(2, 'Фото решения в тетради, необязательно')}<button class="btn btn-primary" type="button" data-act="hw-save" data-n="2">Сдать ДЗ 2</button></div>`;
   }
   if (n === 3) {
     const options = HW_TOPICS.map((topic) => `<option ${hw.topic === topic ? 'selected' : ''}>${esc(topic)}</option>`).join('');
-    return `<div class="hw-form"><label class="field">Задача<select data-bind="3.topic"><option value="">Выберите</option>${options}</select></label>
-      <p class="fine">Минимум 5 шагов. В одном из них обязательно напишите: Если …, то …, иначе …</p>
+    return `<div class="hw-form"><p class="task-ask">Пять шагов своими словами. Один шаг обязательно такой: Если денег хватает, то купить, иначе отказаться.</p><label class="field">Задача<select data-bind="3.topic"><option value="">Выберите</option>${options}</select></label>
       ${hw.steps.map((step, index) => fieldInput(`Шаг ${index + 1}${index === 5 ? ' (необязательно)' : ''}`, `3.steps.${index}`, step)).join('')}
       <button class="btn btn-primary" type="button" data-act="hw-save" data-n="3">Сдать ДЗ 3</button></div>`;
   }
@@ -2250,7 +2249,8 @@ function theoryHtml(lesson) {
   const parts = theoryParts(card.body);
   const ask = THEORY_ASK[card.title] || 'Выберите верный ответ.';
   const dots = [0, 1, 2, 3, 4].map((index) => `<i class="${index < lesson.theory.index ? 'is-done' : ''} ${index === lesson.theory.index ? 'is-now' : ''}"></i>`).join('');
-  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div><p class="task-ask">${esc(ask)}</p>${gate}${options}${why}${recap}${next}</article>`;
+  const answers = card.solved ? `${why}${next}<div class="theory-review">${options}</div>` : `${gate}${options}`;
+  return `<article class="card no-cheat mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Карточка ${lesson.theory.index + 1} из 5">${dots}</div><h3>${esc(card.title)}</h3><div class="key-idea"><span>Ключевая мысль</span><p>${parts.lead}</p></div><div class="theory-copy">${parts.rest}</div><p class="task-ask">${esc(ask)}</p>${answers}${recap}</article>`;
 }
 
 function atDemo(lesson) {
