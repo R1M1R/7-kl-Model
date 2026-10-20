@@ -1808,18 +1808,22 @@ function mergeJournalRows(rows) {
       });
       return;
     }
+    const lessonRank = (lesson) => {
+      if (!lesson) return 0;
+      if (lesson.done) return 100000 + (Number(lesson.total) || 0);
+      if (lesson.working) return 1000 + (Number(lesson.minutes) || 0) + (Number(lesson.labCorrect) || 0);
+      return 0;
+    };
+    const prevRank = [1, 2, 3, 4].reduce((sum, n) => sum + lessonRank(lessonByNumber(current, n)), 0);
+    const nextRank = [1, 2, 3, 4].reduce((sum, n) => sum + lessonRank(lessonByNumber(row, n)), 0);
     const lessons = [1, 2, 3, 4].map((n) => {
       const prev = lessonByNumber(current, n);
       const next = lessonByNumber(row, n);
-      if (prev && prev.done && next && next.done) return (Number(prev.total) || 0) >= (Number(next.total) || 0) ? prev : next;
-      if (next && next.done) return next;
-      return prev || next;
+      return lessonRank(next) > lessonRank(prev) ? next : (prev || next);
     }).filter(Boolean);
     const group = String(row.groupId || '');
     if (current.groups.indexOf(group) < 0) current.groups.push(group);
-    const nextDone = lessonList(row).filter((lesson) => lesson.done).length;
-    const prevDone = lessonList(current).filter((lesson) => lesson.done).length;
-    if (nextDone > prevDone) current.groupId = group;
+    if (nextRank > prevRank) current.groupId = group;
     current.lessons = lessons;
     if (Array.isArray(row.homework)) {
       current.homework = [1, 2, 3, 4].map((n) => {
@@ -2225,7 +2229,14 @@ function notesHtml(lesson) {
   const dots = [0, 1, 2].map((index) => `<i class="${index < step ? 'is-done' : ''} ${index === step ? 'is-now' : ''}"></i>`).join('');
   const last = step === 2;
   const back = step > 0 ? '<button class="btn btn-ghost" type="button" data-act="note-back">Назад</button>' : '<span></span>';
-  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Ответ ${step + 1} из 3">${dots}</div><h3>Дневник · ${step + 1} из 3</h3><p class="fine">Короткая фраза своими словами. Баллов нет, но без трёх ответов блиц не откроется.</p><label class="field">${esc(prompts[step])}<textarea id="note-now" maxlength="400">${esc(lesson.notes[step] || '')}</textarea></label><div class="btn-row">${back}<button class="btn btn-primary" type="button" data-act="notes-save">${last ? 'Открыть блиц' : 'Дальше'}</button></div></article>`;
+  const hints = [
+    ['Чертёж заменяет самолёт', 'Масса и расход важны', 'Карта метро вместо города'],
+    ['Формула S = v · t', 'График станет круче', 'Верх шкалы не ответ'],
+    ['Условие пишут в ромбе', 'Сработала ветка да', 'Если звонок, то выйти, иначе сидеть'],
+    ['В клетках километры между пунктами', 'Путь через парк короче', 'Граф удобен для маршрутов']
+  ];
+  const hint = (hints[lesson.n - 1] || [])[step] || 'Два слова своими словами';
+  return `<article class="card mission quest-card" style="--accent:${mission.hue}"><div class="dots" aria-label="Ответ ${step + 1} из 3">${dots}</div><h3>Дневник · ${step + 1} из 3</h3><p class="task-ask">Ответь своими словами. Нужны хотя бы два слова. Пример в поле — только подсказка, напиши про свою миссию.</p><label class="field">${esc(prompts[step])}<textarea id="note-now" maxlength="400" placeholder="${esc(hint)}">${esc(lesson.notes[step] || '')}</textarea></label><div class="btn-row">${back}<button class="btn btn-primary" type="button" data-act="notes-save">${last ? 'Открыть блиц' : 'Дальше'}</button></div></article>`;
 }
 
 function theoryParts(html) {
@@ -2655,7 +2666,8 @@ function blitzHtml(lesson) {
   if (blitz.review) {
     const result = blitz.results[blitz.index];
     const title = result.timeout ? 'Время вышло' : (result.fast ? 'Слишком быстро' : (result.matched ? 'Верно' : 'Неверно'));
-    return `<article class="card no-cheat"><p class="pill">Блиц ${blitz.index + 1} / 4</p><h3 class="${result.points ? 'ok-text' : 'bad-text'}">${title}</h3><p>${esc(question.explain)}</p><p>Баллы за вопрос: ${result.points} / 10</p><button class="btn btn-primary" type="button" data-act="blitz-next">Дальше</button></article>`;
+    const right = question.type === 'number' ? String(question.answer) : question.options[question.correctIndex];
+    return `<article class="card no-cheat"><p class="pill">Блиц ${blitz.index + 1} / 4</p><h3 class="${result.points ? 'ok-text' : 'bad-text'}">${title}</h3><p class="ok-text">Верный ответ: ${esc(right)}</p><p>${esc(question.explain)}</p><p>Баллы за вопрос: ${result.points} / 10</p><button class="btn btn-primary" type="button" data-act="blitz-next">Дальше</button></article>`;
   }
   const left = Math.max(0, (blitz.deadline || Date.now()) - Date.now());
   const extra = question.usesGraph ? graphTable(lesson.trainer.graph) : '';
@@ -3463,6 +3475,17 @@ function actConfirm(name) {
   }
 }
 
+function confirmLeaveBlitz(hash) {
+  const lesson = activeLesson();
+  if (currentView() !== 'lesson' || !lesson || lesson.phase !== 'blitz') return false;
+  const blitz = lesson.blitz;
+  if (!blitz || blitz.review || !blitz.qStartedAt || blitz.results.length !== blitz.index) return false;
+  confirmModal('Уйти с блица?', 'Таймер не останавливается. Если не успеть вернуться, этот вопрос сгорит без баллов.', () => {
+    location.hash = hash;
+  }, 'Уйти');
+  return true;
+}
+
 function handleAct(act, btn) {
   if (act === 'open-teacher') {
     state.teacherDoor = true;
@@ -3479,10 +3502,12 @@ function handleAct(act, btn) {
     return;
   }
   if (act === 'nav') {
+    if (confirmLeaveBlitz(btn.dataset.go)) return;
     location.hash = btn.dataset.go;
     return;
   }
   if (act === 'open-lesson') {
+    if (confirmLeaveBlitz('lesson/' + btn.dataset.n)) return;
     location.hash = 'lesson/' + btn.dataset.n;
     return;
   }
