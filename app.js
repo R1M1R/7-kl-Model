@@ -1487,7 +1487,7 @@ function scoreStrip(lesson) {
     <div><small>Теория</small><b>${live.theoryScore}</b><small>из 15</small></div>
     <div><small>Практика</small><b>${practice}</b><small>из 45</small></div>
     <div><small>Блиц</small><b>${blitz}</b><small>из 40</small></div>
-    <p class="fine">В миссии ${fmtDuration(lesson.timeMs)} из 45 мин${live.penalty ? ' · штраф −' + live.penalty : ''}</p>
+    <p class="fine">${lesson.phase === 'lab' ? `На этой странице ${fmtDuration(lesson.timeMs)}. Дневник после 30 мин` : `В миссии ${fmtDuration(lesson.timeMs)} из 45 мин`}${live.penalty ? ' · штраф −' + live.penalty : ''}</p>
   </div>`;
 }
 
@@ -2835,7 +2835,7 @@ function settleLab(lesson, ok, missValue) {
     lesson.lab.miss = missValue;
     lesson.lab.streak = 0;
     save();
-    render();
+    render({ toTop: true });
     return;
   }
   lesson.lab.miss = null;
@@ -2847,7 +2847,7 @@ function settleLab(lesson, ok, missValue) {
     lesson.lab.task = makeLabTask(lesson);
   }
   save();
-  render();
+  render({ toTop: true });
 }
 
 function ensureLab(lesson) {
@@ -3290,7 +3290,7 @@ function theoryPick(lesson, index) {
     card.points = card.attempts === 1 ? 3 : 0;
   } else card.wrong.push(index);
   save();
-  render();
+  render(card.solved ? { toTop: true } : {});
 }
 
 function slidersMatch(scenario) {
@@ -3944,7 +3944,7 @@ function handleAct(act, btn) {
     if (step < 2) {
       lesson.noteStep = step + 1;
       save();
-      render();
+      render({ toTop: true });
       return;
     }
     lesson.notesDone = true;
@@ -4020,22 +4020,31 @@ function runVerify() {
   }).join('');
 }
 
+function armedLesson() {
+  if (currentView() === 'lesson') {
+    const lesson = activeLesson();
+    if (!lesson || (lesson.phase !== 'trainer' && lesson.phase !== 'blitz')) return null;
+    return lesson;
+  }
+  let best = null;
+  Object.keys(state.lessons).forEach((key) => {
+    const lesson = state.lessons[key];
+    if (!lesson || (lesson.phase !== 'trainer' && lesson.phase !== 'blitz')) return;
+    if (!best || (lesson.startedAt || 0) >= (best.startedAt || 0)) best = lesson;
+  });
+  return best;
+}
+
 function markFocusLoss() {
   if (!state || !state.student) return;
   const now = Date.now();
   if (now - lastFocusMark < 1200) return;
-  let count = 0;
-  let hit = false;
-  Object.keys(state.lessons).forEach((key) => {
-    const lesson = state.lessons[key];
-    if (!lesson || (lesson.phase !== 'trainer' && lesson.phase !== 'blitz')) return;
-    if (lesson.phase === 'trainer' && atDemo(lesson)) return;
-    if (!lesson.cheatArmedAt || now - lesson.cheatArmedAt < 800) return;
-    lesson.focusLostCount = (lesson.focusLostCount || 0) + 1;
-    count = Math.max(count, lesson.focusLostCount);
-    hit = true;
-  });
-  if (!hit) return;
+  const lesson = armedLesson();
+  if (!lesson) return;
+  if (lesson.phase === 'trainer' && atDemo(lesson)) return;
+  if (!lesson.cheatArmedAt || now - lesson.cheatArmedAt < 800) return;
+  lesson.focusLostCount = (lesson.focusLostCount || 0) + 1;
+  const count = lesson.focusLostCount;
   lastFocusMark = now;
   save();
   pendingYes = null;
@@ -4043,18 +4052,15 @@ function markFocusLoss() {
 }
 
 function accumulateTime() {
-  if (!state || !state.student || document.hidden) return false;
+  if (!state || !state.student || document.hidden || currentView() !== 'lesson') return false;
+  const lesson = activeLesson();
+  if (!lesson || !lesson.startedAt || lesson.phase === 'goal' || lesson.phase === 'done') return false;
   const now = Date.now();
-  let changed = false;
-  Object.keys(state.lessons).forEach((key) => {
-    const lesson = state.lessons[key];
-    if (!lesson || !lesson.startedAt || lesson.phase === 'goal' || lesson.phase === 'done') return;
-    if (!lesson.lastTick) { lesson.lastTick = now; changed = true; return; }
-    const delta = now - lesson.lastTick;
-    if (delta > 0 && delta < 5000) { lesson.timeMs += delta; changed = true; }
-    lesson.lastTick = now;
-  });
-  return changed;
+  if (!lesson.lastTick) { lesson.lastTick = now; return true; }
+  const delta = now - lesson.lastTick;
+  lesson.lastTick = now;
+  if (delta > 0 && delta < 5000) { lesson.timeMs += delta; return true; }
+  return false;
 }
 
 function blitzTick() {
