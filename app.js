@@ -1295,6 +1295,11 @@ function validateTableHw(table) {
   return { ok: true, message: '' };
 }
 
+function wholeKm(value) {
+  const text = String(value == null ? '' : value).trim().replace(/\s*км\.?$/i, '');
+  return /^\d+$/.test(text) ? Number(text) : null;
+}
+
 function validateGraphHw(graph) {
   const nodes = graph.nodes.map((item) => item.trim());
   if (nodes.some((item) => !isMeaningful(item, 2)) || new Set(nodes.map((item) => item.toLowerCase())).size < 4) {
@@ -1308,8 +1313,8 @@ function validateGraphHw(graph) {
     const a = String(edge.a);
     const b = String(edge.b);
     if (a === b) return { ok: false, message: `Ребро ${i + 1} не может соединять вершину саму с собой.` };
-    if (!/^\d+$/.test(String(edge.w).trim())) return { ok: false, message: `У ребра ${i + 1} вес — целое число.` };
-    const w = Number(edge.w);
+    const w = wholeKm(edge.w);
+    if (w == null) return { ok: false, message: `У ребра ${i + 1} вес — целое число. Слово «км» писать не нужно.` };
     if (w < 1 || w > 999) return { ok: false, message: `Вес ребра ${i + 1} должен быть от 1 до 999.` };
     const key = [a, b].sort().join('-');
     if (seen.has(key)) return { ok: false, message: 'Одинаковые рёбра лучше не дублировать.' };
@@ -1338,7 +1343,8 @@ function validateGraphHw(graph) {
     if (!hop) return { ok: false, message: `Между «${parts[i]}» и «${parts[i + 1]}» нет ребра.` };
     length += hop.w;
   }
-  if (Number(graph.length) !== length) return { ok: false, message: `Сумма вашего пути равна ${length}. Проверьте длину.` };
+  const wrote = wholeKm(graph.length);
+  if (wrote == null || wrote !== length) return { ok: false, message: `Сумма вашего пути равна ${length}. Напишите только число ${length}.` };
   const best = allSimplePaths(adj, String(graph.start), String(graph.end)).sort((a, b) => a.len - b.len)[0];
   if (!best) return { ok: false, message: 'Между выбранными пунктами нет пути — добавьте рёбра.' };
   if (length !== best.len) return { ok: false, message: `Этот путь ${length} км, а короче можно за ${best.len} км. Найдите эту цепочку.` };
@@ -2632,7 +2638,7 @@ function trainer4(lesson) {
   const graph = lesson.trainer.graph;
   if (lesson.trainer.stage === 'edges') {
     const rows = graph.edges.map((edge) => `<label class="edge-row"><span>${esc(graph.names[edge.a])} — ${esc(graph.names[edge.b])}</span><input class="bare-input" inputmode="numeric" data-edge="${edge.id}" value="${esc(graph.draft[edge.id] || '')}" placeholder="км"></label>`).join('');
-    const filledRoads = graph.edges.filter((edge) => /^\d+$/.test(String(graph.draft[edge.id] || '').trim())).length;
+    const filledRoads = graph.edges.filter((edge) => wholeKm(graph.draft[edge.id]) != null).length;
     return `<article class="card no-cheat"><h3>Перенеси километры</h3><p class="task-ask">Найди дорогу в таблице: строка и столбец — пункты. Впиши то же число в поле этой дороги.</p><p class="play-count ${filledRoads === graph.edges.length ? 'is-ready' : ''}" data-edge-count>Подписано ${filledRoads} из ${graph.edges.length}</p>${roadSvg(graph)}${distanceTable(graph)}${rows}<button class="btn btn-primary" type="button" data-act="ask-confirm" data-confirm="edge-submit" data-edge-submit ${filledRoads === graph.edges.length ? '' : 'disabled'}>Сдать веса</button></article>`;
   }
   if (lesson.trainer.stage === 'edges-review') {
@@ -3106,6 +3112,7 @@ function ensureBlitzTimer(lesson) {
     blitz.qStartedAt = Date.now();
     blitz.deadline = blitz.qStartedAt + BLITZ_MS;
     blitz.acceptAfter = blitz.qStartedAt + 400;
+    blitz.hiddenAt = 0;
     save();
   }
 }
@@ -3440,9 +3447,9 @@ function actConfirm(name) {
     const values = {};
     let missing = false;
     lesson.trainer.graph.edges.forEach((edge) => {
-      const raw = String(lesson.trainer.graph.draft[edge.id] || '').trim();
-      if (!/^\d+$/.test(raw)) missing = true;
-      values[edge.id] = raw;
+      const raw = wholeKm(lesson.trainer.graph.draft[edge.id]);
+      if (raw == null) missing = true;
+      values[edge.id] = raw == null ? '' : String(raw);
     });
     if (missing) { toast('Для каждого ребра введите целое число километров.'); return; }
     confirmModal('Сдать веса рёбер?', 'Ошибочный вес снимает 10 баллов.', () => {
@@ -3989,6 +3996,7 @@ function handleAct(act, btn) {
     blitz.index += 1;
     blitz.qStartedAt = null;
     blitz.deadline = null;
+    blitz.hiddenAt = 0;
     if (blitz.index >= blitz.questions.length) finishLesson(lesson.n);
     else { save(); render({ toTop: true }); }
     return;
@@ -4090,11 +4098,22 @@ function accumulateTime() {
 
 function blitzTick() {
   if (!state || !state.student) return;
+  let changed = false;
   Object.keys(state.lessons).forEach((key) => {
     const lesson = state.lessons[key];
     if (!lesson || lesson.phase !== 'blitz') return;
     const blitz = lesson.blitz;
     if (!blitz.qStartedAt || blitz.review || blitz.results.length !== blitz.index) return;
+    if (document.hidden) {
+      if (!blitz.hiddenAt) blitz.hiddenAt = Date.now();
+      return;
+    }
+    if (blitz.hiddenAt) {
+      const away = Date.now() - blitz.hiddenAt;
+      blitz.hiddenAt = 0;
+      if (away > 0 && away < BLITZ_MS) blitz.deadline += away;
+      changed = true;
+    }
     if (Date.now() > blitz.deadline) answerBlitz(lesson, false, false, true);
     else if (currentView() === 'lesson' && currentLessonNumber() === lesson.n) {
       const left = Math.max(0, blitz.deadline - Date.now());
@@ -4107,6 +4126,7 @@ function blitzTick() {
       if (label) label.textContent = Math.ceil(left / 1000) + ' с';
     }
   });
+  if (changed) save();
 }
 
 function readGateTick() {
@@ -4197,7 +4217,7 @@ function boot() {
       if (holder) holder.outerHTML = roadSvg(lesson.trainer.graph);
       const counter = document.querySelector('[data-edge-count]');
       if (counter) {
-        const filled = lesson.trainer.graph.edges.filter((edge) => /^\d+$/.test(String(lesson.trainer.graph.draft[edge.id] || '').trim())).length;
+        const filled = lesson.trainer.graph.edges.filter((edge) => wholeKm(lesson.trainer.graph.draft[edge.id]) != null).length;
         counter.textContent = `Подписано ${filled} из ${lesson.trainer.graph.edges.length}`;
         counter.classList.toggle('is-ready', filled === lesson.trainer.graph.edges.length);
         const submit = document.querySelector('[data-edge-submit]');
@@ -4216,8 +4236,11 @@ function boot() {
     }
   });
   window.addEventListener('blur', () => {
+    const field = document.activeElement;
+    const typing = !!(field && /^(INPUT|TEXTAREA|SELECT)$/.test(field.tagName));
     setTimeout(() => {
-      if (!document.hidden && !document.hasFocus()) markFocusLoss();
+      if (typing || document.hidden || document.hasFocus()) return;
+      markFocusLoss();
     }, 250);
   });
   document.addEventListener('contextmenu', (event) => {
