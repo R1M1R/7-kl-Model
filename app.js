@@ -8,7 +8,7 @@ const SECRET = ['M7', 'FGOS', 'LAB', '2026', 'MODEL', 'SALT', 'K9'].join('-');
 const BLITZ_MS = 45000;
 const READ_MS = 7000;
 const LAB_NEED = 8;
-const LAB_MS = 30 * 60 * 1000;
+const LAB_MS = 5 * 60 * 1000;
 const AUTHOR = 'Усеинов Эмир Рустемович';
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
